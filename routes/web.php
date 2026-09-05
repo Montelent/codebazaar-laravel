@@ -5,13 +5,31 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Support\Installer;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::prefix('install')->name('install.')->middleware('not.installed')->group(function () {
+    Route::get('/', [InstallController::class, 'index'])->name('index');
+    Route::get('/requirements', [InstallController::class, 'requirements'])->name('requirements');
+    Route::get('/database', [InstallController::class, 'databaseForm'])->name('database');
+    Route::post('/database', [InstallController::class, 'databaseStore'])->name('database.store');
+    Route::get('/admin', [InstallController::class, 'adminForm'])->name('admin');
+    Route::post('/finish', [InstallController::class, 'finish'])->name('finish');
+});
+
+Route::get('/setup', fn () => redirect()->route('install.index'));
+
+if (! Installer::isInstalled()) {
+    Route::get('/', fn () => redirect()->route('install.index'));
+} else {
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+}
+
 Route::get('/search', [ItemController::class, 'search'])->name('search');
 Route::get('/category/{slug}', [ItemController::class, 'category'])->name('category');
 Route::get('/item/{slug}/{id}', [ItemController::class, 'show'])->name('item.show');

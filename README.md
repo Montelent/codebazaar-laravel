@@ -1,144 +1,66 @@
 # CodeBazaar Laravel — Digital Marketplace
 
-Full **Laravel (PHP)** port of the CodeBazaar CodeCanyon-style marketplace: storefront, product pages, cart, checkout (Stripe + free), buyer account, and admin panel.
+CodeCanyon-style digital marketplace in **Laravel (PHP)** with a **web installer** for shared hosting.
 
-**Repository:** https://github.com/Montelent/codebazaar-laravel  
-
-**Original Next.js version:** https://github.com/Montelent/codebazaar-marketplace
+**Repo:** https://github.com/Montelent/codebazaar-laravel
 
 ---
 
-## Requirements
+## Install like a commercial PHP script (shared hosting)
 
-| Requirement | Version |
-|-------------|---------|
-| PHP | **8.2+** with extensions: `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `json`, `mbstring`, `openssl`, `pdo`, `tokenizer`, `xml` |
-| Composer | 2.x |
-| Database | **MySQL 8+** or **PostgreSQL 14+** (or SQLite for local demo) |
-| Node.js (optional) | 18+ only if you switch from CDN Tailwind to Vite assets |
+### Release ZIP (includes Composer `vendor/`)
 
----
-
-## Quick install (5–10 minutes)
+GitHub does **not** store `vendor/` (too large). Build a distributable package once on any PC with PHP:
 
 ```bash
-# 1. Get the code
 git clone https://github.com/Montelent/codebazaar-laravel.git
 cd codebazaar-laravel
+composer install --no-dev --optimize-autoloader
+bash scripts/build-release.sh
+# → dist/codebazaar-laravel-release.zip
+```
 
-# 2. Install PHP dependencies
+That ZIP is what buyers/users upload.
+
+### Steps (no SSH)
+
+1. Create a **MySQL** database in cPanel.
+2. Upload & extract the **release ZIP**.
+3. Document root → Laravel **`public/`** folder (writable: `storage/`, `bootstrap/cache/`, project root for `.env`).
+4. Open:
+
+```text
+https://yourdomain.com/install
+```
+
+5. Wizard:
+   - **Requirements** — PHP 8.2+, extensions, writable paths, `vendor/` present  
+   - **Database** — site URL + DB details (tested before continue)  
+   - **Admin** — create admin account  
+   - **Finish** — writes `.env`, migrates tables, seeds categories, creates `storage/installed`
+
+6. After success, **`/install` returns 404** (locked).
+
+7. Login: `/login` → Admin: `/admin`
+
+To re-install: delete `storage/installed` (and optionally `.env`).
+
+---
+
+## Developer install (SSH / local)
+
+```bash
 composer install
-
-# 3. Environment
 cp .env.example .env
 php artisan key:generate
-
-# 4. Configure database in .env (MySQL example)
-# DB_CONNECTION=mysql
-# DB_HOST=127.0.0.1
-# DB_PORT=3306
-# DB_DATABASE=codebazaar
-# DB_USERNAME=root
-# DB_PASSWORD=secret
-
-# 5. Create empty database, then migrate & seed
 php artisan migrate --seed
-
-# 6. Storage link (for future uploads)
-php artisan storage:link
-
-# 7. Run
 php artisan serve
 ```
 
-Open **http://127.0.0.1:8000**
-
-| Area | URL |
-|------|-----|
-| Storefront | `/` |
-| Admin | `/admin` |
-| Login | `/login` |
-
-**Default admin** (from `.env`):
-
-- Email: `admin@codebazaar.com`
-- Password: `ChangeMeNow123!`
-
-Change these in `.env` **before** seeding, or update the user in the database after.
-
----
-
-## Download as ZIP
-
-### Source files
-
-1. https://github.com/Montelent/codebazaar-laravel  
-2. **Code → Download ZIP**  
-
-Or:
-
-```bash
-curl -L https://github.com/Montelent/codebazaar-laravel/archive/refs/heads/main.zip -o codebazaar-laravel.zip
-unzip codebazaar-laravel.zip
-cd codebazaar-laravel-main
-```
-
-### SQL / database
-
-After install, export your data:
-
-```bash
-# MySQL
-mysqldump -u root -p codebazaar > codebazaar-backup.sql
-
-# PostgreSQL
-pg_dump -U postgres codebazaar > codebazaar-backup.sql
-```
-
-Schema is created by Laravel migrations (`php artisan migrate`). There is no separate SQL file required for a fresh install.
-
----
-
-## Environment variables
-
-| Variable | Purpose |
-|----------|---------|
-| `APP_URL` | Public site URL |
-| `DB_*` | Database connection |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeded admin account |
-| `STRIPE_KEY` / `STRIPE_SECRET` | Paid checkout (optional for free-only) |
-
----
-
-## Features included
-
-- Homepage with hero (editable), categories, latest products  
-- Search & category listings  
-- Product detail (licenses Regular/Extended, free products, demo link)  
-- Session cart + checkout  
-- Stripe Checkout for paid orders; free orders complete immediately  
-- Buyer account: purchases & downloads (main file URL)  
-- Admin: dashboard stats, product CRUD, site/hero settings  
-- Auth: register, login, logout  
-
----
-
-## Production notes
-
-```bash
-composer install --optimize-autoloader --no-dev
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
-
-Point the web server document root to `/public`.  
-Set `APP_ENV=production` and `APP_DEBUG=false`.
-
-See **Documentation.md** for detailed hosting, Stripe webhooks, and customization.
+See **INSTALL.md** and **Documentation.md**.
 
 ---
 
 ## License
 
-MIT — CodeBazaar branding is original. Do not use third-party trademarks or scraped marketplace assets.
+MIT
