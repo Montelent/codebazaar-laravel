@@ -20,6 +20,7 @@
             <a href="{{ route('admin.categories.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Categories</a>
             <a href="{{ route('admin.attributes.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Attributes</a>
             <a href="{{ route('admin.tags.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Tags</a>
+            <a href="{{ route('admin.media.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Media library</a>
             <a href="{{ route('admin.licenses.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Licenses</a>
             <p class="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Content</p>
             <a href="{{ route('admin.blog.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Blog</a>
