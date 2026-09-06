@@ -6,6 +6,8 @@ use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ItemController;
@@ -18,6 +20,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HeaderFooterSettingsController;
 use App\Http\Controllers\Admin\LicenseController;
+use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MigrateController;
 use App\Http\Controllers\Admin\NavigationSettingsController;
 use App\Http\Controllers\Admin\NewsletterController;
@@ -54,11 +57,14 @@ Route::get('/search', [ItemController::class, 'search'])->name('search');
 Route::get('/category/{slug}', [ItemController::class, 'category'])->name('category');
 Route::get('/item/{slug}/{id}', [ItemController::class, 'show'])->name('item.show');
 Route::get('/author/{username}', [AuthorController::class, 'show'])->name('author.show');
+Route::get('/collection/{username}/{slug}', [CollectionController::class, 'show'])->name('collections.show');
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 Route::get('/page/{slug}', [PageController::class, 'show'])->name('page.show');
 Route::get('/pricing/licenses', [LicenseController::class, 'publicIndex'])->name('licenses.public');
+
+Route::get('/media/file/{path}', [MediaController::class, 'serve'])->where('path', '.*')->name('media.serve');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
@@ -84,8 +90,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/downloads', [AccountController::class, 'downloads'])->name('downloads');
         Route::get('/download/{itemId}', [AccountController::class, 'downloadFile'])->name('download');
         Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::get('/collections', [CollectionController::class, 'index'])->name('collections');
     });
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+    Route::post('/follow/{userId}', [FollowController::class, 'toggle'])->name('follow.toggle');
+    Route::post('/collections', [CollectionController::class, 'store'])->name('collections.store');
+    Route::post('/collections/add-item', [CollectionController::class, 'addItem'])->name('collections.add');
+    Route::delete('/collections/{collection}', [CollectionController::class, 'destroy'])->name('collections.destroy');
+    Route::delete('/collections/{collection}/items/{item}', [CollectionController::class, 'removeItem'])->name('collections.remove');
     Route::post('/item/{itemId}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 });
@@ -100,6 +112,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/attributes/reset', [AttributeController::class, 'reset'])->name('attributes.reset');
     Route::get('/tags', [TagController::class, 'index'])->name('tags.index');
     Route::put('/tags', [TagController::class, 'update'])->name('tags.update');
+    Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+    Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+    Route::delete('/media/{medium}', [MediaController::class, 'destroy'])->name('media.destroy');
     Route::get('/newsletter', [NewsletterController::class, 'index'])->name('newsletter.index');
     Route::post('/newsletter/send', [NewsletterController::class, 'send'])->name('newsletter.send');
     Route::resource('users', UserAdminController::class)->except(['show']);
