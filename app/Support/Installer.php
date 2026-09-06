@@ -87,6 +87,7 @@ class Installer
                 return false;
             }
         }
+
         return true;
     }
 
@@ -103,6 +104,7 @@ class Installer
                     touch($path);
                 }
                 new \PDO('sqlite:' . $path);
+
                 return ['ok' => true, 'message' => 'SQLite OK'];
             }
             $host = $db['host'] ?? '127.0.0.1';
@@ -115,19 +117,18 @@ class Installer
                 : "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
             $pdo = new \PDO($dsn, $user, $pass, [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
             $pdo->query('SELECT 1');
+
             return ['ok' => true, 'message' => 'Connection successful'];
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
         }
     }
 
-    /** Normalize site URL and enable /index.php links for shared hosting. */
     public static function normalizeAppUrl(string $url): string
     {
         $url = rtrim(trim($url), '/');
-        $url = preg_replace('#/index\.php$#i', '', $url);
 
-        return $url;
+        return preg_replace('#/index\.php$#i', '', $url) ?: $url;
     }
 
     public static function writeEnv(array $data): void
@@ -137,18 +138,17 @@ class Installer
         $pass = str_replace(['\\', '"'], ['\\\\', '\\"'], $data['db_password'] ?? '');
         $adminPass = str_replace(['\\', '"'], ['\\\\', '\\"'], $data['admin_password'] ?? '');
 
+        // Clean URL — no /index.php (pretty routes via .htaccess)
         $baseUrl = self::normalizeAppUrl($data['app_url'] ?? '');
-        // Links work without Apache rewrite (Hostinger etc.)
-        $appUrl = $baseUrl.'/index.php';
 
         $lines = [
             'APP_NAME="' . ($data['app_name'] ?? 'CodeBazaar') . '"',
             'APP_ENV=production',
             'APP_KEY=' . $key,
             'APP_DEBUG=false',
-            'APP_URL=' . $appUrl,
+            'APP_URL=' . $baseUrl,
             'ASSET_URL=' . $baseUrl,
-            'FORCE_INDEX_PHP=true',
+            'FORCE_INDEX_PHP=false',
             'FORCE_HTTPS=true',
             '',
             'LOG_CHANNEL=stack',
