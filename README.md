@@ -1,65 +1,30 @@
-# CodeBazaar Laravel — Digital Marketplace
+# CodeBazaar Laravel
 
-CodeCanyon-style digital marketplace in **Laravel (PHP)** with a **web installer** for shared hosting.
+Digital marketplace with **web installer** for shared hosting.
 
-**Repo:** https://github.com/Montelent/codebazaar-laravel
+## Shared hosting (no SSH)
 
----
-
-## Install like a commercial PHP script (shared hosting)
-
-### Release ZIP (includes Composer `vendor/`)
-
-GitHub does **not** store `vendor/` (too large). Build a distributable package once on any PC with PHP:
-
+1. Build ZIP (PC or Termux) with PHP 8.2+ and Composer:
 ```bash
 git clone https://github.com/Montelent/codebazaar-laravel.git
 cd codebazaar-laravel
+composer config audit.block-insecure false
 composer install --no-dev --optimize-autoloader
-bash scripts/build-release.sh
-# → dist/codebazaar-laravel-release.zip
+mkdir -p dist
+zip -r dist/codebazaar-laravel-release.zip . -x ".git/*" -x "dist/*" -x ".env"
 ```
 
-That ZIP is what buyers/users upload.
+2. Upload and extract into the **subdomain folder** (must include `vendor/`).
 
-### Steps (no SSH)
+3. Required folders: `config/` (with database.php etc.), `storage/logs`, `storage/framework/sessions`, `bootstrap/cache`, root `index.php`, root `.htaccess`.
 
-1. Create a **MySQL** database in cPanel.
-2. Upload & extract the **release ZIP**.
-3. Document root → Laravel **`public/`** folder (writable: `storage/`, `bootstrap/cache/`, project root for `.env`).
-4. Open:
+4. PHP **8.2 or 8.3**. Writable: `storage`, `bootstrap/cache`.
 
-```text
-https://yourdomain.com/install
-```
+5. Open `https://yoursite.com/check.php` then `https://yoursite.com/install`.
 
-5. Wizard:
-   - **Requirements** — PHP 8.2+, extensions, writable paths, `vendor/` present  
-   - **Database** — site URL + DB details (tested before continue)  
-   - **Admin** — create admin account  
-   - **Finish** — writes `.env`, migrates tables, seeds categories, creates `storage/installed`
+6. Delete `check.php` after success.
 
-6. After success, **`/install` returns 404** (locked).
-
-7. Login: `/login` → Admin: `/admin`
-
-To re-install: delete `storage/installed` (and optionally `.env`).
-
----
-
-## Developer install (SSH / local)
-
-```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve
-```
-
-See **INSTALL.md** and **Documentation.md**.
-
----
+Document root = folder with `index.php` (no `/public` in URL needed).
 
 ## License
 
