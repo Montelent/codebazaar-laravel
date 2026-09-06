@@ -13,11 +13,12 @@
     <aside class="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-900 text-slate-200 lg:block">
         <div class="border-b border-slate-800 px-4 py-4 text-lg font-bold text-white">CodeBazaar Admin</div>
         <nav class="space-y-1 p-3 text-sm">
-            <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800 {{ request()->routeIs('admin.dashboard') ? 'bg-slate-800 text-white' : '' }}">Dashboard</a>
+            <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Dashboard</a>
             <p class="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Catalog</p>
             <a href="{{ route('admin.products.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Products</a>
             <a href="{{ route('admin.products.create') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Add product</a>
             <a href="{{ route('admin.categories.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Categories</a>
+            <a href="{{ route('admin.attributes.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Attributes</a>
             <a href="{{ route('admin.licenses.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Licenses</a>
             <p class="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Content</p>
             <a href="{{ route('admin.blog.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Blog</a>
@@ -26,7 +27,11 @@
             <a href="{{ route('admin.orders.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Orders</a>
             <a href="{{ route('admin.users.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Users</a>
             <p class="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Site</p>
-            <a href="{{ route('admin.settings.edit') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Settings</a>
+            <a href="{{ route('admin.settings.hub') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Settings hub</a>
+            <a href="{{ route('admin.settings.payments') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Payments</a>
+            <a href="{{ route('admin.settings.navigation') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Navigation</a>
+            <a href="{{ route('admin.settings.header_footer') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Header / footer</a>
+            <a href="{{ route('admin.settings.schema') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Schema SEO</a>
             <a href="{{ route('home') }}" class="mt-4 block rounded-lg px-3 py-2 text-emerald-400 hover:bg-slate-800">← View storefront</a>
         </nav>
     </aside>

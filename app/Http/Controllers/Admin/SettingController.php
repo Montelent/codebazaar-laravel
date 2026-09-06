@@ -49,9 +49,13 @@ class SettingController extends Controller
             'text' => $request->input('announcement_text'),
         ], 'homepage');
 
-        SiteSetting::setValue('footer', [
-            'about' => $request->input('footer_about'),
-        ], 'footer');
+        // Keep about text in sync if present; full footer columns live under Header/Footer settings
+        $footer = SiteSetting::getValue('footer', []);
+        if (! is_array($footer)) {
+            $footer = [];
+        }
+        $footer['about'] = $request->input('footer_about');
+        SiteSetting::setValue('footer', $footer, 'footer');
 
         SiteSetting::setValue('colors', [
             'primary' => $request->input('color_primary', '#059669'),
@@ -63,6 +67,6 @@ class SettingController extends Controller
             'description' => $request->input('seo_description'),
         ], 'seo');
 
-        return back()->with('success', 'Settings saved.');
+        return redirect()->route('admin.settings.general')->with('success', 'General settings saved.');
     }
 }
