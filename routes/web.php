@@ -10,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\BlogAdminController;
@@ -17,7 +18,9 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HeaderFooterSettingsController;
 use App\Http\Controllers\Admin\LicenseController;
+use App\Http\Controllers\Admin\MigrateController;
 use App\Http\Controllers\Admin\NavigationSettingsController;
+use App\Http\Controllers\Admin\NewsletterController;
 use App\Http\Controllers\Admin\OrderAdminController;
 use App\Http\Controllers\Admin\PageAdminController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
@@ -25,6 +28,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SchemaSettingsController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SettingsHubController;
+use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\UserAdminController;
 use App\Support\Installer;
 use Illuminate\Support\Facades\Route;
@@ -70,8 +74,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/email/verify/{id}', [AuthController::class, 'verify'])->name('verification.verify');
 
 Route::middleware('auth')->group(function () {
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])->name('verification.send');
     Route::prefix('account')->name('account.')->group(function () {
         Route::get('/', [AccountController::class, 'index'])->name('index');
         Route::get('/purchases', [AccountController::class, 'purchases'])->name('purchases');
@@ -80,15 +86,22 @@ Route::middleware('auth')->group(function () {
         Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
     });
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+    Route::post('/item/{itemId}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
+    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/migrate', [MigrateController::class, 'run'])->name('migrate');
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::get('/attributes', [AttributeController::class, 'index'])->name('attributes.index');
     Route::put('/attributes', [AttributeController::class, 'update'])->name('attributes.update');
     Route::post('/attributes/reset', [AttributeController::class, 'reset'])->name('attributes.reset');
+    Route::get('/tags', [TagController::class, 'index'])->name('tags.index');
+    Route::put('/tags', [TagController::class, 'update'])->name('tags.update');
+    Route::get('/newsletter', [NewsletterController::class, 'index'])->name('newsletter.index');
+    Route::post('/newsletter/send', [NewsletterController::class, 'send'])->name('newsletter.send');
     Route::resource('users', UserAdminController::class)->except(['show']);
     Route::resource('blog', BlogAdminController::class)->except(['show'])->parameters(['blog' => 'post']);
     Route::resource('pages', PageAdminController::class)->except(['show']);
@@ -99,7 +112,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [SettingsHubController::class, 'index'])->name('settings.hub');
     Route::get('/settings/general', [SettingController::class, 'edit'])->name('settings.general');
     Route::put('/settings/general', [SettingController::class, 'update'])->name('settings.general.update');
-    // Back-compat aliases
     Route::get('/settings/edit', fn () => redirect()->route('admin.settings.general'))->name('settings.edit');
     Route::put('/settings/update', [SettingController::class, 'update'])->name('settings.update');
 
