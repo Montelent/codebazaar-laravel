@@ -12,8 +12,13 @@ class EnsureNotInstalled
     public function handle(Request $request, Closure $next): Response
     {
         if (Installer::isInstalled()) {
-            abort(404, 'Installation already completed.');
+            // Don't 404 — that looks like a broken server. Explain clearly.
+            return redirect('/')->with(
+                'error',
+                'This site is already installed. To reinstall: delete the file storage/installed, then open /install again.'
+            );
         }
+
         return $next($request);
     }
 }
