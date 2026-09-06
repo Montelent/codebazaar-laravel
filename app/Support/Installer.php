@@ -138,7 +138,6 @@ class Installer
         $pass = str_replace(['\\', '"'], ['\\\\', '\\"'], $data['db_password'] ?? '');
         $adminPass = str_replace(['\\', '"'], ['\\\\', '\\"'], $data['admin_password'] ?? '');
 
-        // Clean URL — no /index.php (pretty routes via .htaccess)
         $baseUrl = self::normalizeAppUrl($data['app_url'] ?? '');
 
         $lines = [
@@ -177,6 +176,7 @@ class Installer
         file_put_contents(base_path('.env'), implode("\n", $lines) . "\n");
     }
 
+    /** Runs every migration file — full schema in one install step. */
     public static function runMigrations(): void
     {
         Artisan::call('migrate', ['--force' => true]);
@@ -191,6 +191,7 @@ class Installer
             'email' => $email,
             'password' => Hash::make($password),
             'role' => 'admin',
+            'email_verified_at' => now(),
             'updated_at' => now(),
         ];
         if ($exists) {
@@ -214,5 +215,56 @@ class Installer
                 ]));
             }
         }
+
+        // Default settings so the site works out of the box
+        self::seedSetting('tags', [
+            'React', 'Laravel', 'WordPress', 'Vue', 'PHP', 'HTML', 'SaaS', 'Dashboard', 'Next.js', 'Tailwind',
+        ], 'taxonomy');
+
+        self::seedSetting('nav_header', [
+            ['label' => 'Browse', 'url' => '/search', 'open_new' => false],
+            ['label' => 'Blog', 'url' => '/blog', 'open_new' => false],
+            ['label' => 'Licenses', 'url' => '/pricing/licenses', 'open_new' => false],
+        ], 'navigation');
+
+        self::seedSetting('hero', [
+            'title' => 'CodeBazaar',
+            'subtitle' => 'Premium code, scripts & digital assets',
+            'cta' => 'Search',
+            'image' => '',
+        ], 'homepage');
+
+        self::seedSetting('licenses', [
+            [
+                'id' => 'regular',
+                'name' => 'Regular License',
+                'description' => '<p>Use in a single end product sold to one client.</p>',
+                'price_label' => 'Included with item',
+            ],
+            [
+                'id' => 'extended',
+                'name' => 'Extended License',
+                'description' => '<p>Use in an end product charged to end users (SaaS, etc.).</p>',
+                'price_label' => 'Item extended price',
+            ],
+        ], 'commerce');
+    }
+
+    protected static function seedSetting(string $key, mixed $value, ?string $group = null): void
+    {
+        if (! DB::getSchemaBuilder()->hasTable('site_settings')) {
+            return;
+        }
+        $exists = DB::table('site_settings')->where('key', $key)->exists();
+        if ($exists) {
+            return;
+        }
+        DB::table('site_settings')->insert([
+            'key' => $key,
+            'value' => json_encode($value),
+            'group' => $group,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }
