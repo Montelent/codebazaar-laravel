@@ -11,7 +11,9 @@ class OrderItem extends Model
         'order_id', 'item_id', 'slug', 'title', 'thumbnail_url', 'license_type', 'price',
     ];
 
-    protected $casts = ['price' => 'decimal:2'];
+    protected $casts = [
+        'price' => 'decimal:2',
+    ];
 
     public function order(): BelongsTo
     {

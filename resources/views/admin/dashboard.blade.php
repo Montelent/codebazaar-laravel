@@ -1,20 +1,25 @@
-@extends('layouts.app')
-@section('title', 'Admin · CodeBazaar')
+@extends('layouts.admin')
+@section('title', 'Dashboard')
 @section('content')
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold">Admin dashboard</h1>
-    <div class="flex gap-2 text-sm">
-        <a href="{{ route('admin.products.index') }}" class="rounded-lg border px-3 py-1.5">Products</a>
-        <a href="{{ route('admin.products.create') }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-white">Add product</a>
-        <a href="{{ route('admin.settings.edit') }}" class="rounded-lg border px-3 py-1.5">Settings</a>
-    </div>
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="rounded-xl border bg-white p-5"><p class="text-xs uppercase text-slate-500">Products</p><p class="mt-1 text-3xl font-bold">{{ $products }}</p></div>
+    <div class="rounded-xl border bg-white p-5"><p class="text-xs uppercase text-slate-500">Orders</p><p class="mt-1 text-3xl font-bold">{{ $orders }}</p></div>
+    <div class="rounded-xl border bg-white p-5"><p class="text-xs uppercase text-slate-500">Users</p><p class="mt-1 text-3xl font-bold">{{ $users }}</p></div>
+    <div class="rounded-xl border bg-white p-5"><p class="text-xs uppercase text-slate-500">Paid revenue</p><p class="mt-1 text-3xl font-bold">${{ number_format($revenue, 2) }}</p></div>
+    <div class="rounded-xl border bg-white p-5"><p class="text-xs uppercase text-slate-500">Blog posts</p><p class="mt-1 text-3xl font-bold">{{ $posts }}</p></div>
+    <div class="rounded-xl border bg-white p-5"><p class="text-xs uppercase text-slate-500">CMS pages</p><p class="mt-1 text-3xl font-bold">{{ $pages }}</p></div>
 </div>
-<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-    @foreach($stats as $label => $value)
-        <div class="rounded-xl border bg-white p-4 shadow-sm">
-            <div class="text-2xl font-bold">{{ is_numeric($value) && $label === 'revenue' ? '$'.number_format($value, 2) : $value }}</div>
-            <div class="text-xs uppercase text-slate-500">{{ $label }}</div>
-        </div>
-    @endforeach
+<div class="mt-8 rounded-xl border bg-white p-5">
+    <h2 class="font-semibold">Recent orders</h2>
+    <ul class="mt-3 divide-y text-sm">
+        @forelse($recentOrders as $o)
+            <li class="flex justify-between py-2">
+                <a href="{{ route('admin.orders.show', $o) }}" class="text-emerald-700">#{{ $o->id }} · {{ $o->email }}</a>
+                <span>{{ $o->status }} · ${{ number_format($o->total, 2) }}</span>
+            </li>
+        @empty
+            <li class="py-2 text-slate-500">No orders yet.</li>
+        @endforelse
+    </ul>
 </div>
 @endsection

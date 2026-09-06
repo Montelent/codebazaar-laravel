@@ -12,7 +12,9 @@ class BlogPost extends Model
         'seo_title', 'seo_description', 'category', 'author_id', 'published_at',
     ];
 
-    protected $casts = ['published_at' => 'datetime'];
+    protected $casts = [
+        'published_at' => 'datetime',
+    ];
 
     public function author(): BelongsTo
     {

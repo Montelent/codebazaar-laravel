@@ -1,30 +1,33 @@
 # CodeBazaar Laravel
 
-Digital marketplace with **web installer** for shared hosting.
+Full digital marketplace (CodeCanyon-style) in Laravel with web installer and **shared-hosting URL fix** (`/index.php/...` when Apache rewrite is off).
 
-## Shared hosting (no SSH)
+## Features
 
-1. Build ZIP (PC or Termux) with PHP 8.2+ and Composer:
-```bash
-git clone https://github.com/Montelent/codebazaar-laravel.git
-cd codebazaar-laravel
-composer config audit.block-insecure false
-composer install --no-dev --optimize-autoloader
-mkdir -p dist
-zip -r dist/codebazaar-laravel-release.zip . -x ".git/*" -x "dist/*" -x ".env"
+- Storefront: home, search, categories, product detail, cart, checkout (free + Stripe)
+- Buyer account: purchases & downloads
+- **Admin:** dashboard, products, categories (+ attribute schema), users, blog (TinyMCE), CMS pages, licenses, orders, site settings (hero, announcement, footer, colors, SEO)
+- Web installer at `/install` with lock file
+- `FORCE_INDEX_PHP=true` so all `route()` links work on Hostinger without rewrite
+
+## Shared hosting URLs
+
+After install, `.env` contains:
+
+```env
+APP_URL=https://yoursite.com/index.php
+FORCE_INDEX_PHP=true
 ```
 
-2. Upload and extract into the **subdomain folder** (must include `vendor/`).
+Use links like `/index.php/login` if rewrite is disabled. Menu links are generated automatically with `index.php`.
 
-3. Required folders: `config/` (with database.php etc.), `storage/logs`, `storage/framework/sessions`, `bootstrap/cache`, root `index.php`, root `.htaccess`.
+## Build release ZIP
 
-4. PHP **8.2 or 8.3**. Writable: `storage`, `bootstrap/cache`.
-
-5. Open `https://yoursite.com/check.php` then `https://yoursite.com/install`.
-
-6. Delete `check.php` after success.
-
-Document root = folder with `index.php` (no `/public` in URL needed).
+```bash
+composer config audit.block-insecure false
+composer install --no-dev --optimize-autoloader
+zip -r dist/codebazaar-laravel-release.zip . -x ".git/*" -x "dist/*" -x ".env"
+```
 
 ## License
 

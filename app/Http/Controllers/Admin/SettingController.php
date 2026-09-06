@@ -10,27 +10,59 @@ class SettingController extends Controller
 {
     public function edit()
     {
-        $hero = SiteSetting::get('homepage.hero', [
-            'title' => 'The marketplace for high-quality code',
-            'subtitle' => 'Scripts, plugins, themes, and digital assets.',
+        return view('admin.settings.edit', [
+            'hero' => SiteSetting::getValue('hero', [
+                'title' => 'CodeBazaar',
+                'subtitle' => 'Premium code, scripts & digital assets',
+                'cta' => 'Browse items',
+                'image' => '',
+            ]),
+            'announcement' => SiteSetting::getValue('announcement', [
+                'enabled' => false,
+                'text' => '',
+            ]),
+            'footer' => SiteSetting::getValue('footer', [
+                'about' => 'The marketplace for high-quality code, scripts, plugins, and digital assets.',
+            ]),
+            'colors' => SiteSetting::getValue('colors', [
+                'primary' => '#059669',
+                'secondary' => '#0f172a',
+            ]),
+            'seo' => SiteSetting::getValue('seo', [
+                'title' => 'CodeBazaar',
+                'description' => 'Digital marketplace',
+            ]),
         ]);
-        $site = SiteSetting::get('site', [
-            'name' => config('app.name'),
-            'tagline' => 'Code, scripts & digital assets',
-        ]);
-        return view('admin.settings.edit', compact('hero', 'site'));
     }
 
     public function update(Request $request)
     {
-        SiteSetting::set('homepage.hero', [
+        SiteSetting::setValue('hero', [
             'title' => $request->input('hero_title'),
             'subtitle' => $request->input('hero_subtitle'),
+            'cta' => $request->input('hero_cta'),
+            'image' => $request->input('hero_image'),
         ], 'homepage');
-        SiteSetting::set('site', [
-            'name' => $request->input('site_name'),
-            'tagline' => $request->input('site_tagline'),
-        ], 'site');
+
+        SiteSetting::setValue('announcement', [
+            'enabled' => $request->boolean('announcement_enabled'),
+            'text' => $request->input('announcement_text'),
+        ], 'homepage');
+
+        SiteSetting::setValue('footer', [
+            'about' => $request->input('footer_about'),
+        ], 'footer');
+
+        SiteSetting::setValue('colors', [
+            'primary' => $request->input('color_primary', '#059669'),
+            'secondary' => $request->input('color_secondary', '#0f172a'),
+        ], 'design');
+
+        SiteSetting::setValue('seo', [
+            'title' => $request->input('seo_title'),
+            'description' => $request->input('seo_description'),
+        ], 'seo');
+
         return back()->with('success', 'Settings saved.');
     }
 }
