@@ -1,27 +1,31 @@
-@extends('layouts.app')
-@section('title', 'Products · Admin')
+@extends('layouts.admin')
+@section('title', 'Products')
 @section('content')
-<div class="mb-4 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Products</h1>
-    <a href="{{ route('admin.products.create') }}" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white">Add product</a>
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-xl font-bold">Products</h1>
+  <a href="{{ route('admin.products.create') }}" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Add product</a>
 </div>
-<table class="w-full overflow-hidden rounded-xl border bg-white text-left text-sm">
-    <thead class="bg-slate-50 text-xs uppercase text-slate-500">
-        <tr><th class="px-3 py-2">Title</th><th class="px-3 py-2">Price</th><th class="px-3 py-2">Status</th><th class="px-3 py-2"></th></tr>
-    </thead>
-    <tbody>
-        @foreach($items as $item)
-            <tr class="border-t">
-                <td class="px-3 py-2 font-medium">{{ $item->title }}</td>
-                <td class="px-3 py-2">{{ $item->is_free || $item->regular_price <= 0 ? 'Free' : '$'.number_format($item->regular_price, 2) }}</td>
-                <td class="px-3 py-2">{{ $item->status }}</td>
-                <td class="px-3 py-2 text-right">
-                    <a href="{{ route('admin.products.edit', $item) }}" class="text-emerald-700 hover:underline">Edit</a>
-                    <a href="{{ route('item.show', [$item->slug, $item->id]) }}" class="ml-2 text-slate-500" target="_blank">View</a>
-                </td>
-            </tr>
-        @endforeach
-    </tbody>
+<div class="overflow-x-auto rounded-xl border bg-white">
+<table class="w-full text-left text-sm">
+<thead class="border-b bg-slate-50 text-slate-500">
+<tr><th class="px-4 py-3">Title</th><th>Price</th><th>Category</th><th>Status</th><th>Updated</th><th></th></tr>
+</thead>
+<tbody>
+@foreach($items as $item)
+<tr class="border-b">
+  <td class="px-4 py-3 font-medium">{{ $item->title }}</td>
+  <td>{{ $item->is_free || $item->effectiveRegularPrice()<=0 ? 'Free' : '$'.number_format($item->effectiveRegularPrice(),2) }}</td>
+  <td>{{ $item->category?->name ?? '—' }}</td>
+  <td>{{ $item->status }}</td>
+  <td>{{ $item->updated_at?->format('Y-m-d') }}</td>
+  <td class="px-4 py-3 text-right whitespace-nowrap">
+    <a href="{{ route('item.show', [$item->slug, $item->id]) }}" class="text-slate-500" target="_blank">View</a>
+    <a href="{{ route('admin.products.edit', $item) }}" class="ml-2 text-emerald-700">Edit</a>
+  </td>
+</tr>
+@endforeach
+</tbody>
 </table>
-<div class="mt-4">{{ $items->links() }}</div>
+</div>
+{{ $items->links() }}
 @endsection

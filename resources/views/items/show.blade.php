@@ -1,49 +1,128 @@
 @extends('layouts.app')
-@section('title', $item->title . ' · CodeBazaar')
+@section('title', $item->title)
 @section('content')
-<nav class="mb-3 text-xs text-slate-500">
-    <a href="{{ route('home') }}" class="hover:text-emerald-600">Home</a> ›
-    @if($item->category)
-        <a href="{{ route('category', $item->category->slug) }}" class="hover:text-emerald-600">{{ $item->category->name }}</a> ›
-    @endif
-    <span class="text-slate-800">{{ $item->title }}</span>
-</nav>
-<div class="grid gap-8 lg:grid-cols-12">
-    <div class="lg:col-span-8">
-        <h1 class="text-2xl font-bold">{{ $item->title }}</h1>
-        <p class="mt-1 text-sm text-slate-500">By {{ $item->author->name ?? $item->author->username ?? 'CodeBazaar' }} · {{ number_format($item->sales_count) }} sales</p>
-        <div class="mt-4 overflow-hidden rounded-xl border bg-slate-100">
-            @if($item->thumbnail_url)<img src="{{ $item->thumbnail_url }}" alt="" class="aspect-video w-full object-cover">@endif
+@php
+  $gallery = is_array($item->gallery_urls) ? $item->gallery_urls : [];
+  $features = is_array($item->features) ? $item->features : [];
+  $attrs = is_array($item->attributes) ? $item->attributes : [];
+  $regular = $item->effectiveRegularPrice();
+  $extended = $item->effectiveExtendedPrice();
+@endphp
+<div class="grid gap-8 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="overflow-hidden rounded-2xl border bg-white shadow-sm">
+      @if($item->thumbnail_url)
+        <img src="{{ $item->thumbnail_url }}" alt="" class="max-h-[420px] w-full object-cover">
+      @else
+        <div class="flex h-56 items-center justify-center bg-slate-100 text-slate-400">No preview</div>
+      @endif
+      @if(count($gallery))
+        <div class="flex gap-2 overflow-x-auto border-t p-3">
+          @foreach($gallery as $img)
+            <a href="{{ $img }}" target="_blank" rel="noopener" class="shrink-0">
+              <img src="{{ $img }}" class="h-16 w-24 rounded-lg object-cover ring-1 ring-slate-200" alt="">
+            </a>
+          @endforeach
         </div>
-        <div class="prose prose-slate mt-6 max-w-none text-sm">{!! $item->description !!}</div>
-        @if(is_array($item->features) && count($item->features))
-            <ul class="mt-4 list-disc space-y-1 pl-5 text-sm">@foreach($item->features as $f)<li>{{ $f }}</li>@endforeach</ul>
-        @endif
+      @endif
     </div>
-    <aside class="lg:col-span-4">
-        <div class="sticky top-6 rounded-xl border bg-white p-4 shadow-sm">
-            @php $isFree = $item->is_free || $item->regular_price <= 0; @endphp
-            <div class="text-2xl font-bold">{{ $isFree ? 'Free' : '$' . number_format($item->effectiveRegularPrice(), 2) }}</div>
-            @if(!$isFree)<p class="text-xs text-slate-500">Extended: ${{ number_format($item->effectiveExtendedPrice(), 2) }}</p>@endif
-            <form method="post" action="{{ route('cart.add') }}" class="mt-4 space-y-3">
-                @csrf
-                <input type="hidden" name="item_id" value="{{ $item->id }}">
-                @if(!$isFree)
-                    <select name="license_type" class="w-full rounded-lg border px-3 py-2 text-sm">
-                        <option value="regular">Regular — ${{ number_format($item->effectiveRegularPrice(), 2) }}</option>
-                        <option value="extended">Extended — ${{ number_format($item->effectiveExtendedPrice(), 2) }}</option>
-                    </select>
-                @else
-                    <input type="hidden" name="license_type" value="regular">
-                @endif
-                <button class="w-full rounded-lg bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-700">{{ $isFree ? 'Get free download' : 'Add to Cart' }}</button>
-            </form>
-            @if($item->demo_url)<a href="{{ $item->demo_url }}" target="_blank" class="mt-3 block text-center text-sm text-emerald-700">Live Preview</a>@endif
-            <dl class="mt-4 space-y-1 border-t pt-3 text-xs text-slate-600">
-                <div class="flex justify-between"><dt>Created</dt><dd>{{ $item->created_at->format('j F Y') }}</dd></div>
-                <div class="flex justify-between"><dt>Last update</dt><dd>{{ $item->updated_at->format('j F Y') }}</dd></div>
-            </dl>
-        </div>
-    </aside>
+
+    <div class="rounded-2xl border bg-white p-6 shadow-sm">
+      <h1 class="text-2xl font-bold text-slate-900">{{ $item->title }}</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        @if($item->author)
+          by <a class="text-emerald-700 hover:underline" href="{{ route('author.show', $item->author->username ?: $item->author->id) }}">{{ $item->author->name ?: $item->author->username }}</a>
+        @endif
+        @if($item->category)
+          · in <a class="text-emerald-700 hover:underline" href="{{ route('category', $item->category->slug) }}">{{ $item->category->name }}</a>
+        @endif
+      </p>
+      <div class="prose prose-slate mt-6 max-w-none">{!! $item->description !!}</div>
+      @if(count($features))
+        <h2 class="mt-8 text-lg font-semibold">Features</h2>
+        <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          @foreach($features as $f)<li>{{ $f }}</li>@endforeach
+        </ul>
+      @endif
+    </div>
+
+    @if(count($attrs))
+    <div class="rounded-2xl border bg-white p-6 shadow-sm">
+      <h2 class="text-lg font-semibold">Item attributes</h2>
+      <dl class="mt-4 divide-y text-sm">
+        @foreach($attrs as $label => $vals)
+          <div class="grid grid-cols-3 gap-2 py-2">
+            <dt class="font-medium text-slate-600">{{ is_string($label) ? $label : 'Attribute' }}</dt>
+            <dd class="col-span-2 text-slate-800">
+              @if(is_array($vals))
+                {{ implode(', ', $vals) }}
+              @else
+                {{ $vals }}
+              @endif
+            </dd>
+          </div>
+        @endforeach
+      </dl>
+    </div>
+    @endif
+  </div>
+
+  <aside class="space-y-4 lg:sticky lg:top-24 lg:self-start">
+    <div class="rounded-2xl border bg-white p-5 shadow-sm">
+      @if($item->is_free || $regular <= 0)
+        <p class="text-3xl font-bold text-emerald-700">Free</p>
+      @else
+        <p class="text-3xl font-bold">${{ number_format($regular, 2) }}</p>
+        <p class="text-sm text-slate-500">Regular license</p>
+        @if($extended > 0)
+          <p class="mt-2 text-lg font-semibold text-slate-800">${{ number_format($extended, 2) }} <span class="text-sm font-normal text-slate-500">Extended</span></p>
+        @endif
+      @endif
+
+      <form method="post" action="{{ route('cart.add') }}" class="mt-4 space-y-2">
+        @csrf
+        <input type="hidden" name="item_id" value="{{ $item->id }}">
+        <input type="hidden" name="license" value="regular">
+        <button class="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+          {{ $item->is_free || $regular <= 0 ? 'Get free' : 'Add to cart — Regular' }}
+        </button>
+      </form>
+      @if(!($item->is_free || $regular <= 0) && $extended > 0)
+      <form method="post" action="{{ route('cart.add') }}" class="mt-2">
+        @csrf
+        <input type="hidden" name="item_id" value="{{ $item->id }}">
+        <input type="hidden" name="license" value="extended">
+        <button class="w-full rounded-lg border border-slate-300 py-2.5 text-sm font-semibold hover:bg-slate-50">Add Extended — ${{ number_format($extended, 2) }}</button>
+      </form>
+      @endif
+
+      @if($item->demo_url)
+        <a href="{{ $item->demo_url }}" target="_blank" rel="noopener" class="mt-3 block text-center text-sm text-emerald-700 hover:underline">Live preview</a>
+      @endif
+
+      <form method="post" action="{{ route('wishlist.toggle') }}" class="mt-3">
+        @csrf
+        <input type="hidden" name="item_id" value="{{ $item->id }}">
+        <button class="w-full text-sm text-slate-500 hover:text-emerald-700">♥ Wishlist</button>
+      </form>
+    </div>
+
+    <div class="rounded-2xl border bg-slate-50 p-4 text-xs text-slate-600">
+      <p>Created: {{ $item->created_at?->format('M j, Y') }}</p>
+      <p class="mt-1">Last update: {{ $item->updated_at?->format('M j, Y') }}</p>
+      @if($item->sales_count)<p class="mt-1">Sales: {{ $item->sales_count }}</p>@endif
+    </div>
+  </aside>
 </div>
+
+@if($related->count())
+<section class="mt-12">
+  <h2 class="text-lg font-semibold">Related items</h2>
+  <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    @foreach($related as $r)
+      @include('components.item-card', ['item' => $r])
+    @endforeach
+  </div>
+</section>
+@endif
 @endsection
