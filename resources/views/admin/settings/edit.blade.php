@@ -1,7 +1,8 @@
 @extends('layouts.admin')
-@section('title', 'Settings')
+@section('title', 'General settings')
 @section('content')
-<form method="post" action="{{ route('admin.settings.update') }}" class="mx-auto max-w-3xl space-y-8">
+<a href="{{ route('admin.settings.hub') }}" class="text-sm text-emerald-700">← Settings hub</a>
+<form method="post" action="{{ route('admin.settings.general.update') }}" class="mx-auto mt-4 max-w-3xl space-y-8">
 @csrf @method('PUT')
 
 <section class="rounded-xl border bg-white p-6">
@@ -21,7 +22,8 @@
 </section>
 
 <section class="rounded-xl border bg-white p-6">
-    <h2 class="font-semibold">Footer</h2>
+    <h2 class="font-semibold">Footer about (short)</h2>
+    <p class="text-xs text-slate-500">Full footer columns: Settings → Header / footer</p>
     <textarea name="footer_about" rows="3" class="mt-3 w-full rounded-lg border px-3 py-2 text-sm">{{ $footer['about'] ?? '' }}</textarea>
 </section>
 
@@ -41,6 +43,6 @@
     </div>
 </section>
 
-<button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save all settings</button>
+<button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save general settings</button>
 </form>
 @endsection
