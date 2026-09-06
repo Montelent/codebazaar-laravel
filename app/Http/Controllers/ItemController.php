@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
+use App\Models\Review;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ItemController extends Controller
 {
@@ -22,7 +24,16 @@ class ItemController extends Controller
             ->take(4)
             ->get();
 
-        return view('items.show', compact('item', 'related'));
+        $reviews = collect();
+        $myReview = null;
+        if (Schema::hasTable('reviews')) {
+            $reviews = Review::with('user')->where('item_id', $item->id)->orderByDesc('created_at')->get();
+            if (auth()->check()) {
+                $myReview = $reviews->firstWhere('user_id', auth()->id());
+            }
+        }
+
+        return view('items.show', compact('item', 'related', 'reviews', 'myReview'));
     }
 
     public function search(Request $request)
