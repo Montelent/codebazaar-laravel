@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Upgrade-only helpers — skipped when tables already exist from install. */
 return new class extends Migration
 {
     public function up(): void
@@ -57,11 +58,5 @@ return new class extends Migration
         }
     }
 
-    public function down(): void
-    {
-        Schema::dropIfExists('media_assets');
-        Schema::dropIfExists('collection_items');
-        Schema::dropIfExists('collections');
-        Schema::dropIfExists('follows');
-    }
+    public function down(): void {}
 };

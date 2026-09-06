@@ -4,6 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Upgrade-only: safe no-ops if tables already exist from the main install migration.
+ * Kept so older installs that update the ZIP can still add missing tables.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -41,10 +45,5 @@ return new class extends Migration
         }
     }
 
-    public function down(): void
-    {
-        Schema::dropIfExists('newsletter_logs');
-        Schema::dropIfExists('email_verification_tokens');
-        Schema::dropIfExists('reviews');
-    }
+    public function down(): void {}
 };
