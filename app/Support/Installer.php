@@ -121,18 +121,35 @@ class Installer
         }
     }
 
+    /** Normalize site URL and enable /index.php links for shared hosting. */
+    public static function normalizeAppUrl(string $url): string
+    {
+        $url = rtrim(trim($url), '/');
+        $url = preg_replace('#/index\.php$#i', '', $url);
+
+        return $url;
+    }
+
     public static function writeEnv(array $data): void
     {
         $key = $data['app_key'] ?? ('base64:' . base64_encode(random_bytes(32)));
         $conn = $data['db_connection'] ?? 'mysql';
         $pass = str_replace(['\\', '"'], ['\\\\', '\\"'], $data['db_password'] ?? '');
         $adminPass = str_replace(['\\', '"'], ['\\\\', '\\"'], $data['admin_password'] ?? '');
+
+        $baseUrl = self::normalizeAppUrl($data['app_url'] ?? '');
+        // Links work without Apache rewrite (Hostinger etc.)
+        $appUrl = $baseUrl.'/index.php';
+
         $lines = [
             'APP_NAME="' . ($data['app_name'] ?? 'CodeBazaar') . '"',
             'APP_ENV=production',
             'APP_KEY=' . $key,
             'APP_DEBUG=false',
-            'APP_URL=' . ($data['app_url'] ?? ''),
+            'APP_URL=' . $appUrl,
+            'ASSET_URL=' . $baseUrl,
+            'FORCE_INDEX_PHP=true',
+            'FORCE_HTTPS=true',
             '',
             'LOG_CHANNEL=stack',
             'LOG_LEVEL=error',
@@ -144,7 +161,7 @@ class Installer
             'DB_USERNAME=' . ($data['db_username'] ?? ''),
             'DB_PASSWORD="' . $pass . '"',
             '',
-            'SESSION_DRIVER=database',
+            'SESSION_DRIVER=file',
             'SESSION_LIFETIME=120',
             'CACHE_STORE=file',
             'QUEUE_CONNECTION=sync',
