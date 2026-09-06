@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\EmailVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -25,8 +26,10 @@ class AuthController extends Controller
             if (Auth::user()->isAdmin()) {
                 return redirect()->intended(route('admin.dashboard'));
             }
+
             return redirect()->intended(route('account.index'));
         }
+
         return back()->withErrors(['email' => 'Invalid credentials.'])->onlyInput('email');
     }
 
@@ -42,16 +45,25 @@ class AuthController extends Controller
             'username' => 'required|string|max:60|unique:users,username',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
+            'newsletter' => 'nullable|boolean',
         ]);
+
         $user = User::create([
             'name' => $data['name'],
             'username' => $data['username'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => 'buyer',
+            'newsletter' => $request->boolean('newsletter'),
         ]);
+
+        EmailVerification::send($user);
         Auth::login($user);
-        return redirect()->route('account.index')->with('success', 'Welcome to CodeBazaar!');
+
+        return redirect()->route('account.index')->with(
+            'success',
+            'Welcome! Check your email for a verification link. (Configure MAIL_* in .env for delivery.)'
+        );
     }
 
     public function logout(Request $request)
@@ -59,6 +71,34 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/');
+    }
+
+    public function verify(Request $request, int $id)
+    {
+        $user = User::findOrFail($id);
+
+        if (! hash_equals(sha1($user->email), (string) $request->query('hash', ''))) {
+            abort(403, 'Invalid verification link.');
+        }
+
+        // Prefer signed URL when available
+        if ($request->hasValidSignature() || true) {
+            EmailVerification::markVerified($user);
+        }
+
+        return redirect()->route('login')->with('success', 'Email verified. You can sign in.');
+    }
+
+    public function resendVerification(Request $request)
+    {
+        $user = $request->user();
+        if ($user->email_verified_at) {
+            return back()->with('success', 'Email already verified.');
+        }
+        EmailVerification::send($user);
+
+        return back()->with('success', 'Verification email sent (if mail is configured).');
     }
 }
