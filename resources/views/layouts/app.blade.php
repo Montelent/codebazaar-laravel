@@ -6,79 +6,196 @@
     <title>@yield('title', config('app.name', 'CodeBazaar'))</title>
     <meta name="description" content="@yield('meta_description', 'Digital marketplace for code, scripts, themes and plugins.')">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              envato: { green: '#82b440', dark: '#262626', muted: '#7a7a7a' }
+            },
+            maxWidth: { 'cc': '1200px' },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif']
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      /* CodeCanyon-inspired marketplace shell */
+      :root {
+        --cc-green: #82b440;
+        --cc-green-hover: #6f9a36;
+        --cc-border: #e5e7eb;
+        --cc-bg: #f5f7fa;
+        --cc-text: #1e1e1e;
+      }
+      body { font-family: Inter, system-ui, sans-serif; background: var(--cc-bg); color: var(--cc-text); }
+      .cc-container { width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; }
+      @media (min-width: 640px) { .cc-container { padding-left: 20px; padding-right: 20px; } }
+      @media (min-width: 1024px) { .cc-container { padding-left: 24px; padding-right: 24px; } }
+
+      .cc-header {
+        background: #fff;
+        border-bottom: 1px solid var(--cc-border);
+        box-shadow: 0 1px 0 rgba(0,0,0,.04);
+      }
+      .cc-logo { font-weight: 800; letter-spacing: -0.02em; }
+      .cc-search {
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: #fff;
+        height: 40px;
+        padding: 0 14px;
+        font-size: 14px;
+        width: 100%;
+      }
+      .cc-search:focus { outline: 2px solid rgba(130,180,64,.35); border-color: var(--cc-green); }
+      .cc-btn-primary {
+        background: var(--cc-green);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 4px;
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+      .cc-btn-primary:hover { background: var(--cc-green-hover); }
+      .cc-nav-link { color: #444; font-size: 14px; font-weight: 500; }
+      .cc-nav-link:hover { color: var(--cc-green); }
+
+      .cc-announcement {
+        background: #2c3e50;
+        color: #fff;
+        font-size: 13px;
+        text-align: center;
+        padding: 8px 12px;
+      }
+
+      .cc-card { border-radius: 4px; }
+      .cc-card-title { font-size: 13px; }
+      @media (min-width: 640px) { .cc-card-title { font-size: 14px; } }
+
+      .cc-footer {
+        background: #1a1a1a;
+        color: #b0b0b0;
+        margin-top: 64px;
+      }
+      .cc-footer a:hover { color: #fff; }
+
+      /* Item page sidebar sticky from lg */
+      @media (min-width: 1024px) {
+        .cc-buy-box { position: sticky; top: 88px; }
+      }
+
+      /* Mobile nav collapse */
+      @media (max-width: 767px) {
+        .cc-desktop-nav { display: none; }
+        .cc-mobile-search { order: 3; width: 100%; margin-top: 8px; }
+      }
+      @media (min-width: 768px) {
+        .cc-mobile-toggle { display: none; }
+      }
+
+      main.cc-main { padding-top: 24px; padding-bottom: 48px; min-height: 50vh; }
+      @media (min-width: 1024px) { main.cc-main { padding-top: 32px; } }
+
+      /* Grid density like marketplace */
+      .cc-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+      }
+      @media (min-width: 480px) { .cc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (min-width: 768px) { .cc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; } }
+      @media (min-width: 1100px) { .cc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    </style>
     @stack('head')
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
+<body class="min-h-screen antialiased">
 @php
     $ann = \App\Models\SiteSetting::getValue('announcement', ['enabled' => false, 'text' => '']);
+    $nav = \App\Models\SiteSetting::getValue('nav_header', [
+        ['label' => 'Browse', 'url' => '/search', 'open_new' => false],
+        ['label' => 'Blog', 'url' => '/blog', 'open_new' => false],
+        ['label' => 'Licenses', 'url' => '/pricing/licenses', 'open_new' => false],
+    ]);
+    $footer = \App\Models\SiteSetting::getValue('footer', ['about' => 'The marketplace for high-quality code, scripts, plugins, and digital assets.', 'columns' => [], 'social' => []]);
 @endphp
 @if(!empty($ann['enabled']) && !empty($ann['text']))
-<div class="bg-emerald-700 px-4 py-2 text-center text-sm text-white">{{ $ann['text'] }}</div>
+<div class="cc-announcement">{{ $ann['text'] }}</div>
 @endif
-<header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <a href="{{ route('home') }}" class="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow">◆</span>
-            <span>CodeBazaar</span>
+<header class="cc-header sticky top-0 z-40">
+    <div class="cc-container flex flex-wrap items-center justify-between gap-3 py-3">
+        <a href="{{ route('home') }}" class="cc-logo flex items-center gap-2 text-lg text-slate-900">
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-[var(--cc-green)] text-sm text-white">◆</span>
+            CodeBazaar
         </a>
-        <form action="{{ route('search') }}" method="get" class="order-3 w-full md:order-none md:max-w-md md:flex-1">
-            <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…"
-                   class="w-full rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none">
+        <form action="{{ route('search') }}" method="get" class="cc-mobile-search hidden flex-1 md:block md:max-w-md lg:max-w-lg">
+            <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search">
         </form>
-        <nav class="flex flex-wrap items-center gap-3 text-sm font-medium">
-            <a href="{{ route('search') }}" class="text-slate-600 hover:text-emerald-700">Browse</a>
-            <a href="{{ route('cart.index') }}" class="text-slate-600 hover:text-emerald-700">Cart</a>
+        <nav class="cc-desktop-nav flex flex-wrap items-center gap-3 md:gap-4">
+            @foreach($nav as $link)
+              @php
+                $href = $link['url'] ?? '#';
+                if (str_starts_with($href, '/') && !str_starts_with($href, '//')) {
+                    // leave relative; Laravel forceRootUrl may prefix index.php on absolute route() only
+                }
+              @endphp
+              <a href="{{ $href }}" class="cc-nav-link" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
+            @endforeach
+            <a href="{{ route('cart.index') }}" class="cc-nav-link">Cart</a>
             @auth
-                <a href="{{ route('account.purchases') }}" class="text-slate-600 hover:text-emerald-700">Purchases</a>
-                <a href="{{ route('account.downloads') }}" class="text-slate-600 hover:text-emerald-700">Downloads</a>
+                <a href="{{ route('account.collections') }}" class="cc-nav-link hidden sm:inline">Collections</a>
                 @if(auth()->user()->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}" class="rounded-lg bg-slate-900 px-3 py-1.5 text-white">Admin</a>
+                    <a href="{{ route('admin.dashboard') }}" class="cc-btn-primary">Admin</a>
                 @endif
-                <a href="{{ route('account.index') }}" class="text-slate-600 hover:text-emerald-700">{{ auth()->user()->name ?: 'Account' }}</a>
+                <a href="{{ route('account.index') }}" class="cc-nav-link">{{ auth()->user()->name ?: 'Account' }}</a>
                 <form method="post" action="{{ route('logout') }}">@csrf
-                    <button type="submit" class="text-slate-500 hover:text-red-600">Logout</button>
+                    <button type="submit" class="cc-nav-link text-slate-400">Logout</button>
                 </form>
             @else
-                <a href="{{ route('login') }}" class="text-slate-600 hover:text-emerald-700">Sign in</a>
-                <a href="{{ route('register') }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-white hover:bg-emerald-700">Join free</a>
+                <a href="{{ route('login') }}" class="cc-nav-link">Sign in</a>
+                <a href="{{ route('register') }}" class="cc-btn-primary">Join free</a>
             @endauth
         </nav>
+        <form action="{{ route('search') }}" method="get" class="w-full md:hidden">
+            <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search">
+        </form>
     </div>
 </header>
 @if(session('success'))
-    <div class="mx-auto max-w-7xl px-4 pt-4"><div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{{ session('success') }}</div></div>
+    <div class="cc-container pt-4"><div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{{ session('success') }}</div></div>
 @endif
 @if(session('error'))
-    <div class="mx-auto max-w-7xl px-4 pt-4"><div class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900">{{ session('error') }}</div></div>
+    <div class="cc-container pt-4"><div class="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900">{{ session('error') }}</div></div>
 @endif
-<main class="mx-auto max-w-7xl px-4 py-8">@yield('content')</main>
-@php
-    $footer = \App\Models\SiteSetting::getValue('footer', ['links' => [], 'about' => 'The marketplace for high-quality code, scripts, plugins, and digital assets.']);
-@endphp
-<footer class="mt-16 border-t border-slate-800 bg-slate-950 text-slate-300">
-    <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
+<main class="cc-main cc-container">@yield('content')</main>
+<footer class="cc-footer">
+    <div class="cc-container grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div class="sm:col-span-2">
             <p class="text-lg font-semibold text-white">CodeBazaar</p>
-            <p class="mt-2 max-w-md text-sm text-slate-400">{{ $footer['about'] ?? '' }}</p>
+            <p class="mt-2 max-w-md text-sm text-[#9a9a9a]">{{ $footer['about'] ?? '' }}</p>
         </div>
         <div>
             <p class="text-sm font-semibold text-white">Explore</p>
             <ul class="mt-3 space-y-2 text-sm">
-                <li><a class="hover:text-white" href="{{ route('search') }}">All items</a></li>
-                <li><a class="hover:text-white" href="{{ route('home') }}">Home</a></li>
-                <li><a class="hover:text-white" href="{{ route('blog.index') }}">Blog</a></li>
+                <li><a href="{{ route('search') }}">All items</a></li>
+                <li><a href="{{ route('blog.index') }}">Blog</a></li>
+                <li><a href="{{ route('licenses.public') }}">Licenses</a></li>
             </ul>
         </div>
         <div>
             <p class="text-sm font-semibold text-white">Account</p>
             <ul class="mt-3 space-y-2 text-sm">
-                <li><a class="hover:text-white" href="{{ route('login') }}">Sign in</a></li>
-                <li><a class="hover:text-white" href="{{ route('register') }}">Create account</a></li>
-                <li><a class="hover:text-white" href="{{ route('cart.index') }}">Cart</a></li>
+                <li><a href="{{ route('login') }}">Sign in</a></li>
+                <li><a href="{{ route('register') }}">Create account</a></li>
+                <li><a href="{{ route('cart.index') }}">Cart</a></li>
             </ul>
         </div>
     </div>
-    <div class="border-t border-slate-800 py-4 text-center text-xs text-slate-500">&copy; {{ date('Y') }} CodeBazaar</div>
+    <div class="border-t border-[#2a2a2a] py-4 text-center text-xs text-[#777]">&copy; {{ date('Y') }} CodeBazaar</div>
 </footer>
 @stack('scripts')
 </body>
