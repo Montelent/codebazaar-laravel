@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\Admin\BlogAdminController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -41,6 +43,7 @@ if (! Installer::isInstalled()) {
 Route::get('/search', [ItemController::class, 'search'])->name('search');
 Route::get('/category/{slug}', [ItemController::class, 'category'])->name('category');
 Route::get('/item/{slug}/{id}', [ItemController::class, 'show'])->name('item.show');
+Route::get('/author/{username}', [AuthorController::class, 'show'])->name('author.show');
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
@@ -62,11 +65,15 @@ Route::get('/register', [AuthController::class, 'showRegister'])->name('register
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::middleware('auth')->prefix('account')->name('account.')->group(function () {
-    Route::get('/', [AccountController::class, 'index'])->name('index');
-    Route::get('/purchases', [AccountController::class, 'purchases'])->name('purchases');
-    Route::get('/downloads', [AccountController::class, 'downloads'])->name('downloads');
-    Route::get('/download/{itemId}', [AccountController::class, 'downloadFile'])->name('download');
+Route::middleware('auth')->group(function () {
+    Route::prefix('account')->name('account.')->group(function () {
+        Route::get('/', [AccountController::class, 'index'])->name('index');
+        Route::get('/purchases', [AccountController::class, 'purchases'])->name('purchases');
+        Route::get('/downloads', [AccountController::class, 'downloads'])->name('downloads');
+        Route::get('/download/{itemId}', [AccountController::class, 'downloadFile'])->name('download');
+        Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
+    });
+    Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
