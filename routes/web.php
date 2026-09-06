@@ -2,14 +2,22 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\PageController;
+use App\Http\Controllers\Admin\BlogAdminController;
+use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LicenseController;
+use App\Http\Controllers\Admin\OrderAdminController;
+use App\Http\Controllers\Admin\PageAdminController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UserAdminController;
 use App\Support\Installer;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +41,11 @@ if (! Installer::isInstalled()) {
 Route::get('/search', [ItemController::class, 'search'])->name('search');
 Route::get('/category/{slug}', [ItemController::class, 'category'])->name('category');
 Route::get('/item/{slug}/{id}', [ItemController::class, 'show'])->name('item.show');
+
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+Route::get('/page/{slug}', [PageController::class, 'show'])->name('page.show');
+Route::get('/pricing/licenses', [LicenseController::class, 'publicIndex'])->name('licenses.public');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
@@ -59,6 +72,13 @@ Route::middleware('auth')->prefix('account')->name('account.')->group(function (
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class)->except(['show']);
+    Route::resource('categories', CategoryController::class)->except(['show']);
+    Route::resource('users', UserAdminController::class)->except(['show']);
+    Route::resource('blog', BlogAdminController::class)->except(['show'])->parameters(['blog' => 'post']);
+    Route::resource('pages', PageAdminController::class)->except(['show']);
+    Route::resource('licenses', LicenseController::class)->except(['show']);
+    Route::get('/orders', [OrderAdminController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{order}', [OrderAdminController::class, 'show'])->name('orders.show');
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
 });
