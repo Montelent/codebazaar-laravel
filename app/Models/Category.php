@@ -28,4 +28,27 @@ class Category extends Model
     {
         return $this->hasMany(Item::class);
     }
+
+    /**
+     * Full ancestor chain root → this category (CodeCanyon-style breadcrumb).
+     *
+     * @return array<int, self>
+     */
+    public function breadcrumbTrail(): array
+    {
+        $chain = [];
+        $node = $this;
+        $guard = 0;
+
+        while ($node && $guard < 12) {
+            array_unshift($chain, $node);
+            if (! $node->relationLoaded('parent') && $node->parent_id) {
+                $node->load('parent');
+            }
+            $node = $node->parent;
+            $guard++;
+        }
+
+        return $chain;
+    }
 }
