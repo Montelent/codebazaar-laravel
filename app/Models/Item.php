@@ -10,8 +10,9 @@ class Item extends Model
     protected $fillable = [
         'title', 'slug', 'description', 'features', 'tags', 'attributes', 'gallery_urls',
         'regular_price', 'extended_price', 'sale_price_regular', 'sale_price_extended',
-        'is_free', 'thumbnail_url', 'demo_url', 'main_file_url', 'status', 'is_featured',
-        'sales_count', 'rating_avg', 'rating_count', 'author_id', 'category_id',
+        'is_free', 'thumbnail_url', 'demo_url', 'main_file_url', 'download_files',
+        'status', 'is_featured', 'sales_count', 'rating_avg', 'rating_count',
+        'author_id', 'category_id',
     ];
 
     protected $casts = [
@@ -19,6 +20,7 @@ class Item extends Model
         'tags' => 'array',
         'attributes' => 'array',
         'gallery_urls' => 'array',
+        'download_files' => 'array',
         'is_free' => 'boolean',
         'is_featured' => 'boolean',
         'regular_price' => 'decimal:2',
@@ -50,6 +52,7 @@ class Item extends Model
         if ($this->sale_price_regular !== null) {
             return (float) $this->sale_price_regular;
         }
+
         return (float) $this->regular_price;
     }
 
@@ -61,6 +64,52 @@ class Item extends Model
         if ($this->sale_price_extended !== null) {
             return (float) $this->sale_price_extended;
         }
+
         return (float) $this->extended_price;
+    }
+
+    /**
+     * Normalized list of downloadable files.
+     * Each entry: ['label' => string, 'url' => string, 'type' => main|addon|extra]
+     * Falls back to main_file_url for older products.
+     */
+    public function downloadFilesList(): array
+    {
+        $files = is_array($this->download_files) ? $this->download_files : [];
+        $out = [];
+
+        foreach ($files as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $url = trim((string) ($row['url'] ?? ''));
+            if ($url === '') {
+                continue;
+            }
+            $out[] = [
+                'label' => trim((string) ($row['label'] ?? '')) ?: 'Download',
+                'url' => $url,
+                'type' => in_array(($row['type'] ?? 'main'), ['main', 'addon', 'extra'], true)
+                    ? $row['type']
+                    : 'main',
+            ];
+        }
+
+        if (count($out) === 0 && ! empty($this->main_file_url)) {
+            $out[] = [
+                'label' => 'Main file',
+                'url' => $this->main_file_url,
+                'type' => 'main',
+            ];
+        }
+
+        return $out;
+    }
+
+    public function primaryDownloadUrl(): ?string
+    {
+        $list = $this->downloadFilesList();
+
+        return $list[0]['url'] ?? null;
     }
 }

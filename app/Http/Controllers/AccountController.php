@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Item;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class AccountController extends Controller
             ->where('status', 'paid')
             ->latest()
             ->get();
+
         return view('account.purchases', compact('orders', 'email'));
     }
 
@@ -38,23 +40,33 @@ class AccountController extends Controller
             ->with('item')
             ->latest()
             ->get();
+
         return view('account.downloads', compact('items'));
     }
 
-    public function downloadFile(int $itemId)
+    public function downloadFile(int $itemId, Request $request)
     {
-        $item = \App\Models\Item::findOrFail($itemId);
+        $item = Item::findOrFail($itemId);
         $owned = OrderItem::where('item_id', $itemId)
             ->whereHas('order', fn ($q) => $q->where('status', 'paid')->where(function ($w) {
                 $w->where('user_id', Auth::id())->orWhere('email', Auth::user()?->email);
             }))
             ->exists();
+
         if (! $owned && ! Auth::user()?->isAdmin()) {
             abort(403, 'Purchase required.');
         }
-        if (empty($item->main_file_url)) {
+
+        $files = $item->downloadFilesList();
+        if (count($files) === 0) {
             return back()->with('error', 'No download file is set for this product.');
         }
-        return redirect()->away($item->main_file_url);
+
+        $index = (int) $request->get('file', 0);
+        if ($index < 0 || $index >= count($files)) {
+            $index = 0;
+        }
+
+        return redirect()->away($files[$index]['url']);
     }
 }
