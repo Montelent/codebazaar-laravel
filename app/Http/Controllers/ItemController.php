@@ -47,10 +47,11 @@ class ItemController extends Controller
         $items = Item::approved()
             ->with(['category', 'author'])
             ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($w) use ($q) {
-                    $w->where('title', 'like', "%{$q}%")
-                        ->orWhere('slug', 'like', "%{$q}%")
-                        ->orWhere('description', 'like', "%{$q}%");
+                $like = '%'.$q.'%';
+                $query->where(function ($w) use ($like) {
+                    $w->where('title', 'like', $like)
+                        ->orWhere('slug', 'like', $like)
+                        ->orWhere('description', 'like', $like);
                 });
             })
             ->when($tag !== '', function ($query) use ($tag) {
@@ -74,37 +75,40 @@ class ItemController extends Controller
         return view('items.category', compact('category', 'items'));
     }
 
-    /** Filter items whose attributes JSON has key → value (value may be in an array). */
+    /**
+     * Filter items whose attributes JSON contains key + value.
+     * Uses simple LIKE matching so it works on MySQL and SQLite without fragile JSON path quoting.
+     */
     protected function applyAttributeFilter($query, string $key, string $value): void
     {
-        $driver = DB::connection()->getDriverName();
+        $keyNeedle = '%'.$this->likeEscape($key).'%';
+        $valNeedle = '%'.$this->likeEscape($value).'%';
 
-        if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            // attributes is object: { "Compatible Browsers": ["Chrome", "Firefox"] }
-            $path = '$."'.str_replace(['\', '"'], ['\\', '\"'], $key).'"';
-            $query->where(function ($w) use ($path, $value) {
-                $w->whereRaw('JSON_CONTAINS(JSON_EXTRACT(attributes, ?), JSON_QUOTE(?))', [$path, $value])
-                    ->orWhereRaw('JSON_UNQUOTE(JSON_EXTRACT(attributes, ?)) = ?', [$path, $value]);
-            });
-
-            return;
-        }
-
-        // SQLite / others: tolerant LIKE match on serialized JSON
-        $query->where(function ($w) use ($key, $value) {
-            $w->where('attributes', 'like', '%"'.addcslashes($key, '%_\').'"%')
-                ->where('attributes', 'like', '%"'.addcslashes($value, '%_\').'"%');
+        $query->where(function ($w) use ($keyNeedle, $valNeedle) {
+            $w->where('attributes', 'like', $keyNeedle)
+                ->where('attributes', 'like', $valNeedle);
         });
     }
 
     protected function applyJsonListContains($query, string $column, string $value): void
     {
         $driver = DB::connection()->getDriverName();
-        if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            $query->whereJsonContains($column, $value);
 
-            return;
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            try {
+                $query->whereJsonContains($column, $value);
+
+                return;
+            } catch (\Throwable $e) {
+                // fall through to LIKE
+            }
         }
-        $query->where($column, 'like', '%"'.addcslashes($value, '%_\').'"%');
+
+        $query->where($column, 'like', '%'.$this->likeEscape($value).'%');
+    }
+
+    protected function likeEscape(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }
