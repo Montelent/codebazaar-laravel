@@ -24,7 +24,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      /* CodeCanyon-inspired marketplace shell */
       :root {
         --cc-green: #82b440;
         --cc-green-hover: #6f9a36;
@@ -45,11 +44,11 @@
       .cc-logo { font-weight: 800; letter-spacing: -0.02em; }
       .cc-search {
         border: 1px solid #d1d5db;
-        border-radius: 4px;
+        border-radius: 6px;
         background: #fff;
-        height: 40px;
+        height: 42px;
         padding: 0 14px;
-        font-size: 14px;
+        font-size: 15px;
         width: 100%;
       }
       .cc-search:focus { outline: 2px solid rgba(130,180,64,.35); border-color: var(--cc-green); }
@@ -57,12 +56,13 @@
         background: var(--cc-green);
         color: #fff;
         font-weight: 600;
-        border-radius: 4px;
-        padding: 8px 16px;
+        border-radius: 6px;
+        padding: 10px 18px;
         font-size: 14px;
+        white-space: nowrap;
       }
       .cc-btn-primary:hover { background: var(--cc-green-hover); }
-      .cc-nav-link { color: #444; font-size: 14px; font-weight: 500; }
+      .cc-nav-link { color: #444; font-size: 14px; font-weight: 500; padding: 6px 4px; }
       .cc-nav-link:hover { color: var(--cc-green); }
 
       .cc-announcement {
@@ -73,10 +73,6 @@
         padding: 8px 12px;
       }
 
-      .cc-card { border-radius: 4px; }
-      .cc-card-title { font-size: 13px; }
-      @media (min-width: 640px) { .cc-card-title { font-size: 14px; } }
-
       .cc-footer {
         background: #1a1a1a;
         color: #b0b0b0;
@@ -84,24 +80,34 @@
       }
       .cc-footer a:hover { color: #fff; }
 
-      /* Item page sidebar sticky from lg */
       @media (min-width: 1024px) {
         .cc-buy-box { position: sticky; top: 88px; }
       }
 
-      /* Mobile nav collapse */
+      /* Mobile: stack header cleanly */
       @media (max-width: 767px) {
         .cc-desktop-nav { display: none; }
-        .cc-mobile-search { order: 3; width: 100%; margin-top: 8px; }
+        .cc-header .cc-container {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px 12px;
+          align-items: center;
+        }
+        .cc-header .cc-logo { grid-column: 1; }
+        .cc-header .cc-mobile-actions { grid-column: 2; display: flex; align-items: center; gap: 10px; }
+        .cc-header .cc-mobile-search-row {
+          grid-column: 1 / -1;
+          width: 100%;
+        }
       }
       @media (min-width: 768px) {
-        .cc-mobile-toggle { display: none; }
+        .cc-mobile-actions { display: none; }
+        .cc-mobile-search-row { display: none; }
       }
 
-      main.cc-main { padding-top: 24px; padding-bottom: 48px; min-height: 50vh; }
+      main.cc-main { padding-top: 20px; padding-bottom: 48px; min-height: 50vh; }
       @media (min-width: 1024px) { main.cc-main { padding-top: 32px; } }
 
-      /* Grid density like marketplace */
       .cc-grid {
         display: grid;
         gap: 16px;
@@ -127,22 +133,21 @@
 <div class="cc-announcement">{{ $ann['text'] }}</div>
 @endif
 <header class="cc-header sticky top-0 z-40">
-    <div class="cc-container flex flex-wrap items-center justify-between gap-3 py-3">
+    <div class="cc-container flex flex-wrap items-center justify-between gap-3 py-3 md:flex-nowrap">
         <a href="{{ route('home') }}" class="cc-logo flex items-center gap-2 text-lg text-slate-900">
             <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-[var(--cc-green)] text-sm text-white">◆</span>
             CodeBazaar
         </a>
-        <form action="{{ route('search') }}" method="get" class="cc-mobile-search hidden flex-1 md:block md:max-w-md lg:max-w-lg">
+
+        {{-- Desktop search --}}
+        <form action="{{ route('search') }}" method="get" class="hidden flex-1 md:block md:max-w-md lg:max-w-lg">
             <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search">
         </form>
+
+        {{-- Desktop nav --}}
         <nav class="cc-desktop-nav flex flex-wrap items-center gap-3 md:gap-4">
             @foreach($nav as $link)
-              @php
-                $href = $link['url'] ?? '#';
-                if (str_starts_with($href, '/') && !str_starts_with($href, '//')) {
-                    // leave relative; Laravel forceRootUrl may prefix index.php on absolute route() only
-                }
-              @endphp
+              @php $href = $link['url'] ?? '#'; @endphp
               <a href="{{ $href }}" class="cc-nav-link" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
             @endforeach
             <a href="{{ route('cart.index') }}" class="cc-nav-link">Cart</a>
@@ -160,7 +165,23 @@
                 <a href="{{ route('register') }}" class="cc-btn-primary">Join free</a>
             @endauth
         </nav>
-        <form action="{{ route('search') }}" method="get" class="w-full md:hidden">
+
+        {{-- Mobile: Cart + Sign in / Account --}}
+        <div class="cc-mobile-actions md:hidden">
+            <a href="{{ route('cart.index') }}" class="cc-nav-link text-sm font-medium">Cart</a>
+            @auth
+                @if(auth()->user()->isAdmin())
+                    <a href="{{ route('admin.dashboard') }}" class="cc-btn-primary !px-3 !py-1.5 text-xs">Admin</a>
+                @else
+                    <a href="{{ route('account.index') }}" class="cc-nav-link text-sm font-medium">Account</a>
+                @endif
+            @else
+                <a href="{{ route('login') }}" class="cc-btn-primary !px-3 !py-1.5 text-xs">Sign in</a>
+            @endauth
+        </div>
+
+        {{-- Mobile search full width --}}
+        <form action="{{ route('search') }}" method="get" class="cc-mobile-search-row w-full md:hidden">
             <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search">
         </form>
     </div>
