@@ -105,12 +105,14 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // System tools (migrate + cache clear) — POST only; use the tools page UI
+    // System tools — GET+token (Hostinger-safe) and POST
     Route::get('/tools', [SystemToolsController::class, 'index'])->name('tools.index');
+    Route::match(['get', 'post'], '/tools/run/{action}', [SystemToolsController::class, 'run'])
+        ->where('action', 'migrate|clear-cache')
+        ->name('tools.run');
     Route::post('/tools/migrate', [SystemToolsController::class, 'migrate'])->name('tools.migrate');
     Route::post('/tools/clear-cache', [SystemToolsController::class, 'clearCache'])->name('tools.clear-cache');
-    // Back-compat: old sidebar form posted to admin.migrate
-    Route::post('/migrate', [SystemToolsController::class, 'migrate'])->name('migrate');
+    Route::match(['get', 'post'], '/migrate', [SystemToolsController::class, 'migrate'])->name('migrate');
 
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('categories', CategoryController::class)->except(['show']);

@@ -13,7 +13,6 @@
             colors: {
               envato: { green: '#82b440', dark: '#262626', muted: '#7a7a7a' }
             },
-            maxWidth: { 'cc': '1200px' },
             fontFamily: {
               sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif']
             }
@@ -31,7 +30,8 @@
         --cc-bg: #f5f7fa;
         --cc-text: #1e1e1e;
       }
-      body { font-family: Inter, system-ui, sans-serif; background: var(--cc-bg); color: var(--cc-text); }
+      * { box-sizing: border-box; }
+      body { font-family: Inter, system-ui, sans-serif; background: var(--cc-bg); color: var(--cc-text); margin: 0; }
       .cc-container { width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; }
       @media (min-width: 640px) { .cc-container { padding-left: 20px; padding-right: 20px; } }
       @media (min-width: 1024px) { .cc-container { padding-left: 24px; padding-right: 24px; } }
@@ -41,28 +41,87 @@
         border-bottom: 1px solid var(--cc-border);
         box-shadow: 0 1px 0 rgba(0,0,0,.04);
       }
-      .cc-logo { font-weight: 800; letter-spacing: -0.02em; }
-      .cc-search {
-        border: 1px solid #d1d5db;
+      .cc-logo {
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: #0f172a;
+        font-size: 1.125rem;
+        white-space: nowrap;
+      }
+      .cc-logo-mark {
+        display: inline-flex;
+        height: 32px;
+        width: 32px;
+        align-items: center;
+        justify-content: center;
         border-radius: 6px;
-        background: #fff;
-        height: 42px;
-        padding: 0 14px;
-        font-size: 15px;
+        background: var(--cc-green);
+        color: #fff;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+
+      .cc-search-wrap {
+        position: relative;
         width: 100%;
       }
-      .cc-search:focus { outline: 2px solid rgba(130,180,64,.35); border-color: var(--cc-green); }
+      .cc-search {
+        display: block;
+        width: 100%;
+        height: 44px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #fff;
+        padding: 0 14px 0 40px;
+        font-size: 15px;
+        color: #111;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+      .cc-search::placeholder { color: #9ca3af; }
+      .cc-search:focus {
+        outline: none;
+        border-color: var(--cc-green);
+        box-shadow: 0 0 0 3px rgba(130,180,64,.25);
+      }
+      .cc-search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: #9ca3af;
+        pointer-events: none;
+      }
+
       .cc-btn-primary {
         background: var(--cc-green);
         color: #fff;
         font-weight: 600;
-        border-radius: 6px;
-        padding: 10px 18px;
+        border-radius: 8px;
+        padding: 10px 16px;
         font-size: 14px;
         white-space: nowrap;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
       }
       .cc-btn-primary:hover { background: var(--cc-green-hover); }
-      .cc-nav-link { color: #444; font-size: 14px; font-weight: 500; padding: 6px 4px; }
+      .cc-nav-link {
+        color: #444;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        padding: 6px 4px;
+      }
       .cc-nav-link:hover { color: var(--cc-green); }
 
       .cc-announcement {
@@ -78,31 +137,56 @@
         color: #b0b0b0;
         margin-top: 64px;
       }
+      .cc-footer a { color: inherit; text-decoration: none; }
       .cc-footer a:hover { color: #fff; }
+
+      /* Header layout */
+      .cc-header-inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+      .cc-header-search-desktop {
+        display: none;
+        flex: 1;
+        max-width: 28rem;
+        margin: 0 12px;
+      }
+      .cc-desktop-nav {
+        display: none;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 16px;
+      }
+      .cc-mobile-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .cc-mobile-search {
+        display: block;
+        width: 100%;
+        order: 3;
+      }
+
+      @media (min-width: 768px) {
+        .cc-header-inner {
+          flex-wrap: nowrap;
+          gap: 16px;
+        }
+        .cc-header-search-desktop { display: block; }
+        .cc-desktop-nav { display: flex; }
+        .cc-mobile-actions { display: none; }
+        .cc-mobile-search { display: none; }
+      }
 
       @media (min-width: 1024px) {
         .cc-buy-box { position: sticky; top: 88px; }
-      }
-
-      /* Mobile: stack header cleanly */
-      @media (max-width: 767px) {
-        .cc-desktop-nav { display: none; }
-        .cc-header .cc-container {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          gap: 10px 12px;
-          align-items: center;
-        }
-        .cc-header .cc-logo { grid-column: 1; }
-        .cc-header .cc-mobile-actions { grid-column: 2; display: flex; align-items: center; gap: 10px; }
-        .cc-header .cc-mobile-search-row {
-          grid-column: 1 / -1;
-          width: 100%;
-        }
-      }
-      @media (min-width: 768px) {
-        .cc-mobile-actions { display: none; }
-        .cc-mobile-search-row { display: none; }
+        .cc-header-search-desktop { max-width: 32rem; }
       }
 
       main.cc-main { padding-top: 20px; padding-bottom: 48px; min-height: 50vh; }
@@ -133,32 +217,33 @@
 <div class="cc-announcement">{{ $ann['text'] }}</div>
 @endif
 <header class="cc-header sticky top-0 z-40">
-    <div class="cc-container flex flex-wrap items-center justify-between gap-3 py-3 md:flex-nowrap">
-        <a href="{{ route('home') }}" class="cc-logo flex items-center gap-2 text-lg text-slate-900">
-            <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-[var(--cc-green)] text-sm text-white">◆</span>
+    <div class="cc-container cc-header-inner">
+        <a href="{{ route('home') }}" class="cc-logo">
+            <span class="cc-logo-mark">◆</span>
             CodeBazaar
         </a>
 
-        {{-- Desktop search --}}
-        <form action="{{ route('search') }}" method="get" class="hidden flex-1 md:block md:max-w-md lg:max-w-lg">
-            <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search">
+        <form action="{{ route('search') }}" method="get" class="cc-header-search-desktop">
+            <div class="cc-search-wrap">
+                <svg class="cc-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search" autocomplete="off">
+            </div>
         </form>
 
-        {{-- Desktop nav --}}
-        <nav class="cc-desktop-nav flex flex-wrap items-center gap-3 md:gap-4">
+        <nav class="cc-desktop-nav">
             @foreach($nav as $link)
               @php $href = $link['url'] ?? '#'; @endphp
               <a href="{{ $href }}" class="cc-nav-link" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
             @endforeach
             <a href="{{ route('cart.index') }}" class="cc-nav-link">Cart</a>
             @auth
-                <a href="{{ route('account.collections') }}" class="cc-nav-link hidden sm:inline">Collections</a>
+                <a href="{{ route('account.collections') }}" class="cc-nav-link">Collections</a>
                 @if(auth()->user()->isAdmin())
                     <a href="{{ route('admin.dashboard') }}" class="cc-btn-primary">Admin</a>
                 @endif
                 <a href="{{ route('account.index') }}" class="cc-nav-link">{{ auth()->user()->name ?: 'Account' }}</a>
-                <form method="post" action="{{ route('logout') }}">@csrf
-                    <button type="submit" class="cc-nav-link text-slate-400">Logout</button>
+                <form method="post" action="{{ route('logout') }}" style="display:inline">@csrf
+                    <button type="submit" class="cc-nav-link" style="background:none;border:0;cursor:pointer">Logout</button>
                 </form>
             @else
                 <a href="{{ route('login') }}" class="cc-nav-link">Sign in</a>
@@ -166,31 +251,32 @@
             @endauth
         </nav>
 
-        {{-- Mobile: Cart + Sign in / Account --}}
-        <div class="cc-mobile-actions md:hidden">
-            <a href="{{ route('cart.index') }}" class="cc-nav-link text-sm font-medium">Cart</a>
+        <div class="cc-mobile-actions">
+            <a href="{{ route('cart.index') }}" class="cc-nav-link">Cart</a>
             @auth
                 @if(auth()->user()->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}" class="cc-btn-primary !px-3 !py-1.5 text-xs">Admin</a>
+                    <a href="{{ route('admin.dashboard') }}" class="cc-btn-primary" style="padding:8px 12px;font-size:12px">Admin</a>
                 @else
-                    <a href="{{ route('account.index') }}" class="cc-nav-link text-sm font-medium">Account</a>
+                    <a href="{{ route('account.index') }}" class="cc-nav-link">Account</a>
                 @endif
             @else
-                <a href="{{ route('login') }}" class="cc-btn-primary !px-3 !py-1.5 text-xs">Sign in</a>
+                <a href="{{ route('login') }}" class="cc-btn-primary" style="padding:8px 12px;font-size:12px">Sign in</a>
             @endauth
         </div>
 
-        {{-- Mobile search full width --}}
-        <form action="{{ route('search') }}" method="get" class="cc-mobile-search-row w-full md:hidden">
-            <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search">
+        <form action="{{ route('search') }}" method="get" class="cc-mobile-search">
+            <div class="cc-search-wrap">
+                <svg class="cc-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search items…" class="cc-search" autocomplete="off">
+            </div>
         </form>
     </div>
 </header>
 @if(session('success'))
-    <div class="cc-container pt-4"><div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{{ session('success') }}</div></div>
+    <div class="cc-container" style="padding-top:16px"><div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{{ session('success') }}</div></div>
 @endif
 @if(session('error'))
-    <div class="cc-container pt-4"><div class="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900">{{ session('error') }}</div></div>
+    <div class="cc-container" style="padding-top:16px"><div class="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900">{{ session('error') }}</div></div>
 @endif
 <main class="cc-main cc-container">@yield('content')</main>
 <footer class="cc-footer">

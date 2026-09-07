@@ -3,10 +3,10 @@
 @section('content')
 <a href="{{ route('admin.settings.hub') }}" class="text-sm text-emerald-700">← Settings</a>
 <h1 class="mt-2 text-xl font-bold">Payment methods</h1>
-<p class="text-sm text-slate-500">Stripe, PayPal, bank transfer, and manual / offline.</p>
+<p class="text-sm text-slate-500">Stripe, PayPal, Paystack, Monnify, bank transfer, crypto wallets, and manual.</p>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-4" id="pay-app">
-  <div class="space-y-2" id="method-list"></div>
+  <div class="max-h-[70vh] space-y-2 overflow-y-auto" id="method-list"></div>
   <div class="rounded-xl border bg-white p-6 shadow-sm lg:col-span-3" id="method-editor"></div>
 </div>
 
@@ -34,6 +34,54 @@
       '<input data-path="' + path + '" data-key="' + key + '" type="' + type + '" value="' + String(val).replace(/"/g,'&quot;') + '" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm pay-input"></div>';
   }
 
+  function fieldsFor(m) {
+    let html = '';
+    switch (m.provider) {
+      case 'STRIPE':
+        html += field('Publishable key', 'publishableKey', 'config');
+        html += field('Secret key', 'secretKey', 'secrets', 'password');
+        html += field('Webhook secret', 'webhookSecret', 'secrets', 'password');
+        break;
+      case 'PAYPAL':
+        html += field('Client ID', 'clientId', 'config');
+        html += field('Client secret', 'clientSecret', 'secrets', 'password');
+        html += field('Mode (sandbox|live)', 'mode', 'config');
+        break;
+      case 'PAYSTACK':
+        html += field('Public key', 'publicKey', 'config');
+        html += field('Secret key', 'secretKey', 'secrets', 'password');
+        html += field('Currency (e.g. NGN)', 'currency', 'config');
+        break;
+      case 'MONNIFY':
+        html += field('API key', 'apiKey', 'config');
+        html += field('Secret key', 'secretKey', 'secrets', 'password');
+        html += field('Contract code', 'contractCode', 'config');
+        html += field('Mode (sandbox|live)', 'mode', 'config');
+        html += field('Currency', 'currency', 'config');
+        break;
+      case 'BANK_TRANSFER':
+        html += field('Bank name', 'bankName', 'config');
+        html += field('Account name', 'accountName', 'config');
+        html += field('Account number', 'accountNumber', 'config');
+        break;
+      case 'CRYPTO_USDT':
+      case 'CRYPTO_USDC':
+      case 'CRYPTO_BNB':
+      case 'CRYPTO_GRAM':
+        html += field('Network (e.g. TRC20 / ERC20 / BEP20 / TON)', 'network', 'config');
+        html += field('Wallet address', 'walletAddress', 'config');
+        break;
+      case 'CRYPTO_XRP':
+        html += field('Wallet address', 'walletAddress', 'config');
+        html += field('Destination tag (optional)', 'destinationTag', 'config');
+        break;
+      case 'CRYPTO_BTC':
+        html += field('Wallet address', 'walletAddress', 'config');
+        break;
+    }
+    return html;
+  }
+
   function render() {
     const list = document.getElementById('method-list');
     list.innerHTML = methods.map((m, i) =>
@@ -48,22 +96,10 @@
 
     const m = methods[active];
     let html = '<div class="flex items-center justify-between"><div><h2 class="text-lg font-semibold">' + m.name + '</h2>' +
-      '<p class="text-xs text-slate-500">' + (m.is_manual ? 'Manual · admin confirmation' : 'Automatic gateway') + '</p></div>' +
+      '<p class="text-xs text-slate-500">' + (m.is_manual ? 'Manual · admin confirmation' : 'Automatic gateway') + ' · ' + m.provider + '</p></div>' +
       '<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="en" ' + (m.enabled?'checked':'') + '> Enabled</label></div>';
 
-    if (m.provider === 'STRIPE') {
-      html += field('Publishable key', 'publishableKey', 'config');
-      html += field('Secret key', 'secretKey', 'secrets', 'password');
-      html += field('Webhook secret', 'webhookSecret', 'secrets', 'password');
-    } else if (m.provider === 'PAYPAL') {
-      html += field('Client ID', 'clientId', 'config');
-      html += field('Client secret', 'clientSecret', 'secrets', 'password');
-      html += field('Mode (sandbox|live)', 'mode', 'config');
-    } else if (m.provider === 'BANK_TRANSFER') {
-      html += field('Bank name', 'bankName', 'config');
-      html += field('Account name', 'accountName', 'config');
-      html += field('Account number', 'accountNumber', 'config');
-    }
+    html += fieldsFor(m);
     html += '<div class="mt-3"><label class="text-sm font-medium">Buyer instructions</label>' +
       '<textarea id="instr" rows="3" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">' + (m.instructions||'') + '</textarea></div>';
 

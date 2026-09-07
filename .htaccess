@@ -3,7 +3,6 @@
 
 DirectoryIndex index.php index.html
 
-# Deny access to sensitive paths
 <IfModule mod_authz_core.c>
     Require all granted
 </IfModule>
@@ -16,7 +15,8 @@ DirectoryIndex index.php index.html
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Redirect /index.php/foo → /foo (clean URLs)
+    # Redirect /index.php/foo → /foo (clean URLs) — GET only
+    RewriteCond %{REQUEST_METHOD} GET
     RewriteCond %{THE_REQUEST} \s/+index\.php([?\s/]) [NC]
     RewriteRule ^index\.php(?:/(.*))?$ /$1 [R=301,L,NE]
 
