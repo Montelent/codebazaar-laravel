@@ -12,11 +12,24 @@ class ItemController extends Controller
 {
     public function show(string $slug, int $id)
     {
-        $item = Item::with(['author', 'category'])
+        $item = Item::with(['author', 'category.parent'])
             ->where(function ($q) use ($slug, $id) {
                 $q->where('id', $id)->orWhere('slug', $slug);
             })
             ->firstOrFail();
+
+        // Load full parent chain for deep subcategories
+        if ($item->category) {
+            $node = $item->category;
+            $guard = 0;
+            while ($node && $node->parent_id && $guard < 12) {
+                if (! $node->relationLoaded('parent') || ! $node->parent) {
+                    $node->load('parent');
+                }
+                $node = $node->parent;
+                $guard++;
+            }
+        }
 
         $related = Item::approved()
             ->where('id', '!=', $item->id)
@@ -65,7 +78,6 @@ class ItemController extends Controller
                 $query->where('tags', 'like', '%'.$tag.'%');
             })
             ->when($attrKey !== '' && $attrVal !== '', function ($query) use ($attrKey, $attrVal) {
-                // Match both attribute label and value in JSON text (MySQL + SQLite safe)
                 $query->where('attributes', 'like', '%'.$attrKey.'%')
                     ->where('attributes', 'like', '%'.$attrVal.'%');
             })
@@ -78,12 +90,46 @@ class ItemController extends Controller
 
     public function category(string $slug)
     {
-        $category = Category::where('slug', $slug)->firstOrFail();
+        $category = Category::with('parent')->where('slug', $slug)->firstOrFail();
+
+        $node = $category;
+        $guard = 0;
+        while ($node && $node->parent_id && $guard < 12) {
+            if (! $node->relationLoaded('parent') || ! $node->parent) {
+                $node->load('parent');
+            }
+            $node = $node->parent;
+            $guard++;
+        }
+
+        // Include items in this category and all descendant subcategories
+        $categoryIds = $this->descendantCategoryIds($category);
+
         $items = Item::approved()
-            ->where('category_id', $category->id)
+            ->whereIn('category_id', $categoryIds)
             ->latest()
             ->paginate(24);
 
         return view('items.category', compact('category', 'items'));
+    }
+
+    /** @return array<int, int> */
+    protected function descendantCategoryIds(Category $category): array
+    {
+        $ids = [$category->id];
+        $queue = [$category->id];
+
+        while ($queue) {
+            $parentId = array_shift($queue);
+            $children = Category::where('parent_id', $parentId)->pluck('id')->all();
+            foreach ($children as $childId) {
+                if (! in_array($childId, $ids, true)) {
+                    $ids[] = $childId;
+                    $queue[] = $childId;
+                }
+            }
+        }
+
+        return $ids;
     }
 }
