@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Item;
 use App\Models\Review;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ItemController extends Controller
@@ -20,15 +20,22 @@ class ItemController extends Controller
 
         $related = Item::approved()
             ->where('id', '!=', $item->id)
-            ->when($item->category_id, fn ($q) => $q->where('category_id', $item->category_id))
+            ->when($item->category_id, function ($q) use ($item) {
+                $q->where('category_id', $item->category_id);
+            })
             ->latest()
             ->take(4)
             ->get();
 
         $reviews = collect();
         $myReview = null;
+
         if (Schema::hasTable('reviews')) {
-            $reviews = Review::with('user')->where('item_id', $item->id)->orderByDesc('created_at')->get();
+            $reviews = Review::with('user')
+                ->where('item_id', $item->id)
+                ->orderByDesc('created_at')
+                ->get();
+
             if (auth()->check()) {
                 $myReview = $reviews->firstWhere('user_id', auth()->id());
             }
@@ -55,10 +62,12 @@ class ItemController extends Controller
                 });
             })
             ->when($tag !== '', function ($query) use ($tag) {
-                $this->applyJsonListContains($query, 'tags', $tag);
+                $query->where('tags', 'like', '%'.$tag.'%');
             })
             ->when($attrKey !== '' && $attrVal !== '', function ($query) use ($attrKey, $attrVal) {
-                $this->applyAttributeFilter($query, $attrKey, $attrVal);
+                // Match both attribute label and value in JSON text (MySQL + SQLite safe)
+                $query->where('attributes', 'like', '%'.$attrKey.'%')
+                    ->where('attributes', 'like', '%'.$attrVal.'%');
             })
             ->latest()
             ->paginate(24)
@@ -69,46 +78,12 @@ class ItemController extends Controller
 
     public function category(string $slug)
     {
-        $category = \App\Models\Category::where('slug', $slug)->firstOrFail();
-        $items = Item::approved()->where('category_id', $category->id)->latest()->paginate(24);
+        $category = Category::where('slug', $slug)->firstOrFail();
+        $items = Item::approved()
+            ->where('category_id', $category->id)
+            ->latest()
+            ->paginate(24);
 
         return view('items.category', compact('category', 'items'));
-    }
-
-    /**
-     * Filter items whose attributes JSON contains key + value.
-     * Uses simple LIKE matching so it works on MySQL and SQLite without fragile JSON path quoting.
-     */
-    protected function applyAttributeFilter($query, string $key, string $value): void
-    {
-        $keyNeedle = '%'.$this->likeEscape($key).'%';
-        $valNeedle = '%'.$this->likeEscape($value).'%';
-
-        $query->where(function ($w) use ($keyNeedle, $valNeedle) {
-            $w->where('attributes', 'like', $keyNeedle)
-                ->where('attributes', 'like', $valNeedle);
-        });
-    }
-
-    protected function applyJsonListContains($query, string $column, string $value): void
-    {
-        $driver = DB::connection()->getDriverName();
-
-        if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            try {
-                $query->whereJsonContains($column, $value);
-
-                return;
-            } catch (\Throwable $e) {
-                // fall through to LIKE
-            }
-        }
-
-        $query->where($column, 'like', '%'.$this->likeEscape($value).'%');
-    }
-
-    protected function likeEscape(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }
