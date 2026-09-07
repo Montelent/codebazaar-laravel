@@ -13,6 +13,8 @@ class Item extends Model
         'is_free', 'thumbnail_url', 'demo_url', 'main_file_url', 'download_files',
         'status', 'is_featured', 'sales_count', 'rating_avg', 'rating_count',
         'author_id', 'category_id',
+        'seo_title', 'seo_description', 'seo_keywords', 'canonical_url',
+        'og_title', 'og_description', 'og_image', 'robots', 'focus_keyword',
     ];
 
     protected $casts = [
@@ -68,11 +70,6 @@ class Item extends Model
         return (float) $this->extended_price;
     }
 
-    /**
-     * Normalized list of downloadable files.
-     * Each entry: ['label' => string, 'url' => string, 'type' => main|addon|extra]
-     * Falls back to main_file_url for older products.
-     */
     public function downloadFilesList(): array
     {
         $files = is_array($this->download_files) ? $this->download_files : [];
@@ -111,5 +108,23 @@ class Item extends Model
         $list = $this->downloadFilesList();
 
         return $list[0]['url'] ?? null;
+    }
+
+    public function seoPayload(): array
+    {
+        $desc = $this->seo_description
+            ?: \Illuminate\Support\Str::limit(strip_tags((string) $this->description), 160, '…');
+
+        return [
+            'title' => $this->seo_title ?: $this->title,
+            'description' => $desc,
+            'keywords' => $this->seo_keywords,
+            'canonical' => $this->canonical_url ?: route('item.show', [$this->slug, $this->id]),
+            'robots' => $this->robots,
+            'og_title' => $this->og_title ?: ($this->seo_title ?: $this->title),
+            'og_description' => $this->og_description ?: $desc,
+            'og_image' => $this->og_image ?: $this->thumbnail_url,
+            'og_type' => 'product',
+        ];
     }
 }
