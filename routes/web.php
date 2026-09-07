@@ -114,6 +114,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/tools/clear-cache', [SystemToolsController::class, 'clearCache'])->name('tools.clear-cache');
     Route::match(['get', 'post'], '/migrate', [SystemToolsController::class, 'migrate'])->name('migrate');
 
+    // Must be registered before products resource
+    Route::get('/products/category-attributes/{category}', [ProductController::class, 'categoryAttributes'])
+        ->name('products.category-attributes');
+
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::get('/attributes', [AttributeController::class, 'index'])->name('attributes.index');
