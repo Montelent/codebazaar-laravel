@@ -14,9 +14,13 @@
     $item->thumbnail_url ? [$item->thumbnail_url] : [],
     $gallery
   )));
+  // If description was stored with escaped HTML entities, decode once for display
+  $descriptionHtml = (string) ($item->description ?? '');
+  if ($descriptionHtml !== '' && str_contains($descriptionHtml, '&lt;') && ! str_contains($descriptionHtml, '<p') && ! str_contains($descriptionHtml, '<div')) {
+      $descriptionHtml = html_entity_decode($descriptionHtml, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+  }
 @endphp
 
-{{-- Breadcrumb --}}
 <nav class="mb-4 text-sm text-slate-500">
   <a href="{{ route('home') }}" class="hover:text-[var(--cc-green)]">Home</a>
   <span class="mx-1.5 text-slate-300">/</span>
@@ -28,10 +32,7 @@
 </nav>
 
 <div class="grid gap-8 lg:grid-cols-12">
-  {{-- Main column --}}
   <div class="lg:col-span-8 space-y-5">
-
-    {{-- Title block --}}
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.65rem]">{{ $item->title }}</h1>
       <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
@@ -52,7 +53,6 @@
       </div>
     </div>
 
-    {{-- Preview / gallery --}}
     <div class="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
       <div class="relative bg-slate-50">
         @if(count($previews))
@@ -79,7 +79,6 @@
       @endif
     </div>
 
-    {{-- Tabs --}}
     <div class="rounded border border-slate-200 bg-white shadow-sm" id="item-tabs">
       <div class="flex flex-wrap gap-0 border-b border-slate-200 text-sm font-medium">
         <button type="button" class="cc-tab border-b-2 border-[var(--cc-green)] px-4 py-3 text-slate-900" data-tab="details">Item details</button>
@@ -90,7 +89,7 @@
       </div>
 
       <div class="cc-tab-panel p-5 sm:p-6" data-panel="details">
-        <div class="prose prose-slate max-w-none prose-a:text-[var(--cc-green)] prose-img:rounded">{!! $item->description !!}</div>
+        <div class="item-body">{!! $descriptionHtml !!}</div>
         @if(count($features))
           <h3 class="mt-8 text-base font-semibold text-slate-900">Features</h3>
           <ul class="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
@@ -124,7 +123,6 @@
         @else
           <p class="mb-4 text-sm text-slate-500"><a href="{{ route('login') }}" class="text-[var(--cc-green)]">Sign in</a> to leave a review.</p>
         @endauth
-
         <ul class="space-y-4">
           @forelse($reviews as $review)
             <li class="border-t border-slate-100 pt-4 first:border-0 first:pt-0">
@@ -136,13 +134,6 @@
                 <span class="text-xs text-slate-400">{{ $review->created_at?->diffForHumans() }}</span>
               </div>
               @if($review->comment)<p class="mt-1 text-sm text-slate-600">{{ $review->comment }}</p>@endif
-              @auth
-                @if(auth()->id()===$review->user_id || auth()->user()->isAdmin())
-                  <form method="post" action="{{ route('reviews.destroy', $review) }}" class="mt-1">@csrf @method('DELETE')
-                    <button class="text-xs text-red-600">Delete</button>
-                  </form>
-                @endif
-              @endauth
             </li>
           @empty
             <li class="text-sm text-slate-500">No reviews yet.</li>
@@ -165,9 +156,7 @@
               <td class="px-4 py-3 text-slate-800">
                 @foreach($valList as $i => $v)
                   @if($i > 0)<span class="text-slate-300">, </span>@endif
-                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}"
-                     class="text-[var(--cc-green)] hover:underline"
-                     title="Browse items with {{ $labelStr }}: {{ $v }}">{{ $v }}</a>
+                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}" class="text-[var(--cc-green)] hover:underline">{{ $v }}</a>
                 @endforeach
               </td>
             </tr>
@@ -180,7 +169,6 @@
     </div>
   </div>
 
-  {{-- Sidebar buy box --}}
   <aside class="lg:col-span-4">
     <div class="cc-buy-box space-y-4">
       <div class="rounded border border-slate-200 bg-white p-5 shadow-sm">
@@ -223,14 +211,6 @@
           </a>
         @endif
 
-        @auth
-          <form method="post" action="{{ route('wishlist.toggle') }}" class="mt-2">
-            @csrf
-            <input type="hidden" name="item_id" value="{{ $item->id }}">
-            <button class="w-full py-2 text-sm text-slate-500 hover:text-[var(--cc-green)]">♡ Add to Wishlist</button>
-          </form>
-        @endauth
-
         <ul class="mt-4 space-y-1.5 border-t border-slate-100 pt-4 text-xs text-slate-500">
           <li class="flex justify-between"><span>Last update</span><span class="text-slate-700">{{ $item->updated_at?->format('M j, Y') }}</span></li>
           <li class="flex justify-between"><span>Published</span><span class="text-slate-700">{{ $item->created_at?->format('M j, Y') }}</span></li>
@@ -242,7 +222,6 @@
         </ul>
       </div>
 
-      {{-- Compact attributes (CodeCanyon sidebar style) --}}
       @if(count($attrs))
       <div class="rounded border border-slate-200 bg-white p-4 shadow-sm">
         <h3 class="text-sm font-semibold text-slate-900">Item attributes</h3>
@@ -264,12 +243,6 @@
             </div>
           @endforeach
         </dl>
-        @if(count($attrs) > 8)
-          <button type="button" class="mt-3 text-xs font-medium text-[var(--cc-green)] hover:underline"
-                  onclick="document.querySelector('.cc-tab[data-tab=attributes]')?.click(); document.getElementById('item-tabs')?.scrollIntoView({behavior:'smooth'})">
-            View all attributes →
-          </button>
-        @endif
       </div>
       @endif
 
