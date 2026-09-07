@@ -33,6 +33,11 @@ class HeaderFooterSettingsController extends Controller
                 'cta_label' => 'Join free',
                 'cta_url' => '/register',
             ]),
+            'codes' => SiteSetting::getValue('site_codes', [
+                'head' => '',
+                'body_start' => '',
+                'body_end' => '',
+            ]),
         ]);
     }
 
@@ -43,9 +48,17 @@ class HeaderFooterSettingsController extends Controller
         if (! is_array($footer) || ! is_array($header)) {
             return back()->with('error', 'Invalid JSON.');
         }
+
         SiteSetting::setValue('footer', $footer, 'footer');
         SiteSetting::setValue('header', $header, 'header');
 
-        return back()->with('success', 'Header & footer saved.');
+        // Verification / analytics / ad verification snippets
+        SiteSetting::setValue('site_codes', [
+            'head' => (string) $request->input('code_head', ''),
+            'body_start' => (string) $request->input('code_body_start', ''),
+            'body_end' => (string) $request->input('code_body_end', ''),
+        ], 'codes');
+
+        return back()->with('success', 'Header, footer & verification codes saved.');
     }
 }

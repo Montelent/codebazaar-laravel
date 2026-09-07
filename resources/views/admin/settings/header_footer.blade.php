@@ -32,6 +32,29 @@
     <p class="mt-1 text-xs text-slate-500">Array of { "title": "…", "links": [ {"label":"…","url":"…"} ] }</p>
   </section>
 
+  <section class="rounded-xl border bg-white p-6 space-y-4">
+    <div>
+      <h2 class="font-semibold">Verification &amp; tracking codes</h2>
+      <p class="mt-1 text-sm text-slate-500">Google Search Console, Bing, Facebook domain verification, Analytics, Tag Manager, AdSense site verification, etc. Output unescaped — paste only trusted code.</p>
+    </div>
+    <div>
+      <label class="text-sm font-medium">&lt;head&gt; codes</label>
+      <p class="text-xs text-slate-500">Meta tags, verification tags, GTM head snippet, AdSense account verification.</p>
+      <textarea name="code_head" rows="5" class="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs" placeholder="&lt;meta name=&quot;google-site-verification&quot; content=&quot;…&quot;&gt;">{{ $codes['head'] ?? '' }}</textarea>
+    </div>
+    <div>
+      <label class="text-sm font-medium">After &lt;body&gt; open</label>
+      <p class="text-xs text-slate-500">GTM noscript, body-start pixels.</p>
+      <textarea name="code_body_start" rows="4" class="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs">{{ $codes['body_start'] ?? '' }}</textarea>
+    </div>
+    <div>
+      <label class="text-sm font-medium">Before &lt;/body&gt;</label>
+      <p class="text-xs text-slate-500">Chat widgets, deferred analytics, footer scripts.</p>
+      <textarea name="code_body_end" rows="4" class="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs">{{ $codes['body_end'] ?? '' }}</textarea>
+    </div>
+    <p class="text-xs text-slate-500">For page-level ads (blog, product, footer banners), use <a href="{{ route('admin.settings.ads') }}" class="text-emerald-700">Settings → Ad placements</a>.</p>
+  </section>
+
   <button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save</button>
 </form>
 
