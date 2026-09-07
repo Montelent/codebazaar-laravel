@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Admin') · CodeBazaar</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
+    {{-- Free open-source TinyMCE (no API key required) --}}
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js" referrerpolicy="origin"></script>
     @stack('head')
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
@@ -21,7 +22,6 @@
     <div class="flex min-w-0 flex-1 flex-col">
         <header class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
             <div class="flex items-center gap-3">
-                {{-- Mobile menu button --}}
                 <button type="button" id="admin-menu-btn" class="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 lg:hidden" aria-label="Open menu">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
@@ -83,12 +83,19 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof tinymce !== 'undefined') {
     tinymce.init({
       selector: 'textarea.tinymce',
-      height: 360,
-      menubar: true,
-      plugins: 'lists link image table code fullscreen preview searchreplace visualblocks wordcount',
-      toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image table | code fullscreen',
+      height: 380,
+      menubar: 'file edit view insert format tools table help',
+      plugins: [
+        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+        'insertdatetime', 'media', 'table', 'help', 'wordcount'
+      ],
+      toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | removeformat | code fullscreen preview',
+      toolbar_mode: 'sliding',
       branding: false,
-      promotion: false
+      promotion: false,
+      license_key: 'gpl',
+      content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 14px; }'
     });
   }
 });
