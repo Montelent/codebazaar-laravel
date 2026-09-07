@@ -1,37 +1,16 @@
-# Hostinger / shared hosting (pretty URLs like other Laravel sites)
+# Hostinger / shared hosting
 
-Other Laravel sites on Hostinger usually point the **domain document root to the `public` folder**. That is the normal setup and does **not** need `/index.php/` in the URL.
+## Recommended document root
 
-## Recommended setup (same as typical Laravel)
-
-1. Upload and extract the project so you have:
+Point the domain (or subdomain) **document root** to the project `public` folder:
 
 ```text
-/home/USER/domains/yoursite.com/
-  codebazaar/          ← full app (or directly in public_html parent)
-    app/
-    bootstrap/
-    public/            ← only this folder is web-accessible
-      index.php
-      .htaccess
-    vendor/
-    storage/
-    ...
+/home/USER/domains/yoursite.com/public_html/coderrr/public
 ```
 
-2. In **hPanel → Domains → your domain → Document root** set it to:
+or keep the app in `public_html` and set document root to `public_html/public`.
 
-```text
-.../codebazaar/public
-```
-
-or if the app lives in `public_html`:
-
-```text
-public_html/public
-```
-
-3. Open `https://yoursite.com/install` — no `index.php` in the path.
+Then open `https://yoursite.com/install` (no `/index.php/` in the path).
 
 ## Alternative (everything in public_html root)
 
@@ -39,6 +18,43 @@ If document root **must** stay `public_html`:
 
 - Keep root `index.php` + root `.htaccess` (included in the package).
 - Delete `storage/installed` if reinstalling.
+
+## Permissions
+
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+Or use hPanel → **Fix File Ownership**.
+
+## Cron jobs (Laravel scheduler)
+
+Laravel only needs **one** cron job. In **hPanel → Advanced → Cron Jobs**:
+
+| Field | Value |
+|-------|--------|
+| Common settings | Every Minute (`* * * * *`) |
+| Command | see below |
+
+**Command** (adjust path and PHP binary):
+
+```bash
+cd /home/u925754286/domains/simplifynaija.com/public_html/coderrr && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+Find PHP path with `which php` in SSH, or Hostinger’s PHP selector path (often `/usr/bin/php` or `/opt/alt/php84/usr/bin/php`).
+
+Scheduled tasks are defined in `routes/console.php` (e.g. daily `auth:clear-resets`).
+
+## System tools (no SSH)
+
+After login as admin:
+
+1. Open **Admin → System tools** (sidebar → Maintenance).
+2. **Run DB migrations** — applies pending migrations.
+3. **Clear all caches** — runs `optimize:clear`, config/route/view/event/cache clear.
+
+Use **Clear all caches** after `git pull` or editing `.env` / Blade files if the site looks outdated.
 
 ## /install returns 404
 

@@ -20,7 +20,6 @@
 <a href="{{ route('admin.settings.navigation') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Navigation</a>
 <a href="{{ route('admin.settings.header_footer') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Header / footer</a>
 <a href="{{ route('admin.settings.schema') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Schema SEO</a>
-<form method="post" action="{{ route('admin.migrate') }}" class="mt-4 px-3">@csrf
-  <button class="text-left text-xs text-amber-300 hover:text-amber-200">Run DB migrations</button>
-</form>
+<p class="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Maintenance</p>
+<a href="{{ route('admin.tools.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">System tools</a>
 <a href="{{ route('home') }}" class="mt-2 block rounded-lg px-3 py-2 text-emerald-400 hover:bg-slate-800">← View storefront</a>

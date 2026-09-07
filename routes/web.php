@@ -21,7 +21,6 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HeaderFooterSettingsController;
 use App\Http\Controllers\Admin\LicenseController;
 use App\Http\Controllers\Admin\MediaController;
-use App\Http\Controllers\Admin\MigrateController;
 use App\Http\Controllers\Admin\NavigationSettingsController;
 use App\Http\Controllers\Admin\NewsletterController;
 use App\Http\Controllers\Admin\OrderAdminController;
@@ -31,6 +30,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SchemaSettingsController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SettingsHubController;
+use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\UserAdminController;
 use App\Support\Installer;
@@ -104,7 +104,14 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::post('/migrate', [MigrateController::class, 'run'])->name('migrate');
+
+    // System tools (migrate + cache clear) — POST only; use the tools page UI
+    Route::get('/tools', [SystemToolsController::class, 'index'])->name('tools.index');
+    Route::post('/tools/migrate', [SystemToolsController::class, 'migrate'])->name('tools.migrate');
+    Route::post('/tools/clear-cache', [SystemToolsController::class, 'clearCache'])->name('tools.clear-cache');
+    // Back-compat: old sidebar form posted to admin.migrate
+    Route::post('/migrate', [SystemToolsController::class, 'migrate'])->name('migrate');
+
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::get('/attributes', [AttributeController::class, 'index'])->name('attributes.index');

@@ -1,8 +1,21 @@
 # Installation guide — CodeBazaar Laravel
 
+## Quick install (web installer)
+
+1. Upload / extract the project on your host (Hostinger: see **HOSTINGER.md**).
+2. Point the domain **document root** at the project `public/` folder when possible.
+3. Ensure `storage/` and `bootstrap/cache/` are writable (755/775).
+4. Open `https://your-domain.com/install` and complete:
+   - Requirements check
+   - Database credentials (creates `.env` automatically)
+   - Admin account
+5. Log in at `/login` → Admin dashboard.
+
+After install, use **Admin → System tools** to run migrations or clear caches without SSH.
+
 ## Recommended: merge into a fresh Laravel 11 app
 
-This repository contains the **CodeBazaar application layer** (models, controllers, views, migrations, routes). For a complete framework skeleton (all default config files, `vendor` via Composer), use:
+This repository contains the **CodeBazaar application layer** (models, controllers, views, migrations, routes). For a complete framework skeleton:
 
 ```bash
 # 1) Create a stock Laravel 11 project
@@ -18,10 +31,11 @@ cp -R /tmp/codebazaar-laravel/resources/views resources/
 cp -R /tmp/codebazaar-laravel/database/migrations database/migrations/
 cp /tmp/codebazaar-laravel/database/seeders/DatabaseSeeder.php database/seeders/
 cp /tmp/codebazaar-laravel/routes/web.php routes/web.php
+cp /tmp/codebazaar-laravel/routes/console.php routes/console.php
 cp /tmp/codebazaar-laravel/bootstrap/app.php bootstrap/app.php
 cp /tmp/codebazaar-laravel/.env.example .env.example
 
-# 4) Add Stripe package
+# 4) Add Stripe package (optional payments)
 composer require stripe/stripe-php
 
 # 5) Env + database
@@ -49,6 +63,23 @@ php artisan serve
 ```
 
 If Composer reports missing skeleton files, use the **Recommended** method above.
+
+## Cron (required for schedules)
+
+Add **one** system cron entry (every minute):
+
+```cron
+* * * * * cd /full/path/to/codebazaar && php artisan schedule:run >> /dev/null 2>&1
+```
+
+On Hostinger: **hPanel → Advanced → Cron Jobs** → Common settings: Every Minute → paste the command with your real path (and PHP binary if needed).
+
+## Maintenance without SSH
+
+In the admin panel open **System tools**:
+
+- **Run DB migrations** — applies pending migrations
+- **Clear all caches** — config, routes, views, events, application cache
 
 ## SQLite quick demo
 

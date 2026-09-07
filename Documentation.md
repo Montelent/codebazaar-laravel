@@ -10,11 +10,14 @@
 | Views | `resources/views` (Blade + Tailwind CDN) |
 | Migrations | `database/migrations` |
 | Seeders | `database/seeders/DatabaseSeeder.php` |
+| Schedule | `routes/console.php` |
 | Admin gate | `app/Http/Middleware/EnsureAdmin.php` (alias `admin`) |
 
-Data flow mirrors the Next.js CodeBazaar product model: **items**, **categories**, **orders**, **order_items**, **site_settings**, **users** (roles `admin` / `buyer`).
+Data flow: **items**, **categories**, **orders**, **order_items**, **site_settings**, **users** (roles `admin` / `buyer`).
 
 ## 2. Installation (detailed)
+
+See **INSTALL.md** and **HOSTINGER.md** for Hostinger-specific steps.
 
 ### 2.1 System packages (Ubuntu example)
 
@@ -27,27 +30,8 @@ sudo mv composer.phar /usr/local/bin/composer
 
 ### 2.2 Database
 
-**MySQL**
-
 ```sql
 CREATE DATABASE codebazaar CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-**PostgreSQL**
-
-```sql
-CREATE DATABASE codebazaar;
-```
-
-**SQLite (fast local demo)**
-
-```bash
-# .env
-DB_CONNECTION=sqlite
-# touch database/database.sqlite
-
-touch database/database.sqlite
-php artisan migrate --seed
 ```
 
 ### 2.3 Composer & app key
@@ -64,68 +48,79 @@ php artisan key:generate
 php artisan migrate --seed
 ```
 
-This creates tables and:
+Creates tables, admin user (`ADMIN_EMAIL` / `ADMIN_PASSWORD`), sample categories/products, homepage settings.
 
-- Admin user from `ADMIN_EMAIL` / `ADMIN_PASSWORD`
-- Sample categories
-- Two sample products
-- Default homepage hero settings
+### 2.5 Web installer
+
+On shared hosting you can use `/install` instead of SSH. It writes `.env`, runs migrations, and creates the admin user.
 
 ## 3. Admin panel
 
-1. Visit `/login` with admin credentials.  
-2. You are redirected to `/admin`.  
-3. **Products** — create/edit title, slug, HTML description, free flag, regular/extended/sale prices, category, thumbnail, demo URL, **main download file URL**, features, screenshots, featured flag.  
-4. **Settings** — site name, tagline, hero title/subtitle.  
-5. **View on site** opens the public product page.
+1. Visit `/login` with admin credentials → `/admin`.
+2. **Products** — title, slug, HTML description (TinyMCE free build), prices, category, media, featured flag.
+3. **Categories / Attributes / Tags / Media / Licenses**.
+4. **Blog / Pages / Newsletter**.
+5. **Orders / Users**.
+6. **Settings** — general, payments, navigation, header/footer, schema SEO.
+7. **System tools** — run migrations & clear caches from the browser.
 
-## 4. Checkout & Stripe
+### Mobile admin
 
-- Cart total **≤ 0** → order marked `paid`, cart cleared, redirect to downloads.  
-- Cart total **> 0** → requires `STRIPE_SECRET`; creates Stripe Checkout Session and redirects.  
+Use the hamburger (☰) to open the full sidebar menu on phones.
+
+## 4. System tools & caches
+
+**Admin → System tools**
+
+| Action | What it runs |
+|--------|----------------|
+| Run DB migrations | `php artisan migrate --force` |
+| Clear all caches | `optimize:clear`, `config:clear`, `route:clear`, `view:clear`, `event:clear`, `cache:clear` |
+
+Prefer this after deploying code or changing `.env` when you do not have SSH.
+
+## 5. Cron / scheduler
+
+Laravel expects **one** cron entry every minute:
+
+```cron
+* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Tasks live in `routes/console.php` (e.g. daily password-reset token cleanup). Add more with `Schedule::...` as needed.
+
+**Hostinger:** hPanel → Advanced → Cron Jobs → Every Minute → use full path to the app and to `php`.
+
+## 6. Checkout & Stripe
+
+- Cart total **≤ 0** → order marked `paid`, cart cleared.
+- Cart total **> 0** → requires `STRIPE_SECRET`; Stripe Checkout Session.
 - Success URL marks order `paid` via `checkout.success`.
 
-For production webhooks, add a route verifying `STRIPE_WEBHOOK_SECRET` and updating order status on `checkout.session.completed`.
+For production webhooks, verify `STRIPE_WEBHOOK_SECRET` on `checkout.session.completed`.
 
-## 5. Downloads
+## 7. Downloads
 
-Buyers with a **paid** order can open `/account/downloads` and download via `main_file_url` on the product. Admins can always download.
+Buyers with a **paid** order use `/account/downloads`. Set **Main download file URL** on each product.
 
-Set the file URL in **Admin → Products → Main download file URL** (host ZIP on S3, R2, etc.).
+## 8. Customization
 
-## 6. Customization
+- **Theme:** `resources/views/layouts/app.blade.php` (Tailwind CDN + custom CSS).
+- **Home:** `HomeController` + `SiteSetting` keys `homepage.hero` / `hero`, `site`.
+- **Rich text:** free TinyMCE from jsDelivr (`license_key: gpl`) — no API key.
+- **New admin modules:** controller under `Admin/`, routes in the `auth`+`admin` group, Blade under `resources/views/admin/`.
 
-- **Theme:** `resources/views/layouts/app.blade.php` (Tailwind CDN).  
-- **Home content:** `HomeController` + `SiteSetting` keys `homepage.hero`, `site`.  
-- **New admin modules:** add controller under `Admin/`, routes inside `middleware(['auth','admin'])` group, Blade under `resources/views/admin/`.
-
-## 7. Shared hosting / cPanel
-
-1. Upload project (or git pull).  
-2. `composer install --no-dev` via SSH.  
-3. Document root → `public/`.  
-4. Ensure `storage/` and `bootstrap/cache/` are writable (`chmod -R 775 storage bootstrap/cache`).  
-
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
-| 500 after install | `php artisan key:generate`; check `storage/logs/laravel.log` |
-| SQLSTATE connection | Verify `.env` DB_* and that database exists |
+| 500 after install | `php artisan key:generate`; check `storage/logs/laravel.log`; or Admin → Clear caches |
+| SQLSTATE / unknown column | Admin → **Run DB migrations** or `php artisan migrate --force` |
+| 405 on migrate | Use **Admin → System tools** (POST forms). Do not open `/admin/migrate` as GET |
 | 403 on /admin | User `role` must be `admin` |
+| TinyMCE API key warning | Use current code (jsDelivr GPL build); hard-refresh admin |
+| Stale CSS/views | Admin → Clear all caches |
 | Stripe error | Set `STRIPE_SECRET`; free products work without Stripe |
-| Blank styles | CDN Tailwind requires network; or install Vite + Tailwind locally |
-
-## 9. Relationship to Next.js CodeBazaar
-
-| Concern | Next.js repo | This Laravel repo |
-|---------|--------------|-------------------|
-| Runtime | Node / Vercel | PHP / any host |
-| DB access | `pg` + Supabase | Eloquent (MySQL/Postgres/SQLite) |
-| Admin | App Router admin | Blade admin |
-| Cart | Zustand client | Laravel session |
-
-Feature parity is focused on core marketplace flows; extend Blade/admin modules as needed for blog CMS depth, multi-vendor, etc.
 
 ## 10. Support
 
