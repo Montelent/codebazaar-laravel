@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
+use App\Support\Seo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -12,6 +13,7 @@ class BlogAdminController extends Controller
     public function index()
     {
         $posts = BlogPost::orderByDesc('created_at')->paginate(30);
+
         return view('admin.blog.index', compact('posts'));
     }
 
@@ -29,6 +31,7 @@ class BlogAdminController extends Controller
             $data['published_at'] = now();
         }
         BlogPost::create($data);
+
         return redirect()->route('admin.blog.index')->with('success', 'Post created.');
     }
 
@@ -45,27 +48,27 @@ class BlogAdminController extends Controller
             $data['published_at'] = now();
         }
         $post->update($data);
+
         return redirect()->route('admin.blog.index')->with('success', 'Post updated.');
     }
 
     public function destroy(BlogPost $post)
     {
         $post->delete();
+
         return back()->with('success', 'Post deleted.');
     }
 
     protected function validated(Request $request): array
     {
-        return $request->validate([
+        return $request->validate(array_merge([
             'title' => 'required|string|max:200',
             'slug' => 'nullable|string|max:200',
             'content' => 'nullable|string',
             'excerpt' => 'nullable|string',
-            'cover_url' => 'nullable|url',
+            'cover_url' => 'nullable|string|max:1000',
             'status' => 'required|in:draft,published',
-            'seo_title' => 'nullable|string|max:200',
-            'seo_description' => 'nullable|string|max:300',
             'category' => 'nullable|string|max:120',
-        ]);
+        ], Seo::rules()));
     }
 }
