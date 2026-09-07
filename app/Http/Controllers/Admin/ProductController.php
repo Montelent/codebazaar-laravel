@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\SiteSetting;
+use App\Support\Seo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -174,7 +175,7 @@ class ProductController extends Controller
             return $html;
         }
 
-        if (str_contains($html, '&lt;') && ! str_contains($html, '<p') && ! str_contains($html, '<div') && ! str_contains($html, '<h')) {
+        if (str_contains($html, '<') && ! str_contains($html, '<p') && ! str_contains($html, '<div') && ! str_contains($html, '<h')) {
             $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
 
@@ -221,7 +222,7 @@ class ProductController extends Controller
 
     protected function validated(Request $request): array
     {
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'title' => 'required|string|max:200',
             'slug' => 'nullable|string|max:160',
             'description' => 'nullable|string',
@@ -244,7 +245,7 @@ class ProductController extends Controller
             'download_files.*.label' => 'nullable|string|max:200',
             'download_files.*.url' => 'nullable|string|max:2000',
             'download_files.*.type' => 'nullable|in:main,addon,extra',
-        ]);
+        ], Seo::rules()));
 
         $data['is_free'] = $request->boolean('is_free');
         $data['is_featured'] = $request->boolean('is_featured');
@@ -268,11 +269,17 @@ class ProductController extends Controller
 
         $downloadFiles = $this->parseDownloadFiles($request);
 
-        // Only write JSON column after migration has run
         if (Schema::hasColumn('items', 'download_files')) {
             $data['download_files'] = $downloadFiles;
         } else {
             unset($data['download_files']);
+        }
+
+        // Only persist SEO columns after migration
+        foreach (array_keys(Seo::rules()) as $seoKey) {
+            if (! Schema::hasColumn('items', $seoKey)) {
+                unset($data[$seoKey]);
+            }
         }
 
         $primary = null;
