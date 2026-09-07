@@ -13,6 +13,22 @@ class SiteSetting extends Model
         'value' => 'array',
     ];
 
+    /**
+     * Alias used by HomeController and seeders.
+     */
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        return static::getValue($key, $default);
+    }
+
+    /**
+     * Alias used by seeders / older call sites.
+     */
+    public static function set(string $key, mixed $value, ?string $group = null): void
+    {
+        static::setValue($key, $value, $group);
+    }
+
     public static function getValue(string $key, mixed $default = null): mixed
     {
         try {

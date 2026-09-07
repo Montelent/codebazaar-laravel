@@ -42,6 +42,14 @@ class DatabaseSeeder extends Seeder
             'subtitle' => 'Scripts, plugins, themes, and digital assets.',
         ], 'homepage');
 
+        // Also write the shorter key used by admin settings UI so both stay in sync
+        SiteSetting::set('hero', [
+            'title' => 'The marketplace for high-quality code',
+            'subtitle' => 'Scripts, plugins, themes, and digital assets.',
+            'cta' => 'Browse items',
+            'image' => '',
+        ], 'homepage');
+
         SiteSetting::set('site', [
             'name' => 'CodeBazaar',
             'tagline' => 'Code, scripts & digital assets',

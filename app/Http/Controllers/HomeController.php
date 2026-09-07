@@ -15,10 +15,12 @@ class HomeController extends Controller
         $latest = Item::approved()->latest()->take(12)->get();
         $categories = Category::query()->whereNull('parent_id')->withCount('items')->orderBy('name')->get();
         $blog = BlogPost::query()->where('status', 'published')->latest('published_at')->take(6)->get();
-        $hero = SiteSetting::get('homepage.hero', [
+
+        // Prefer the key written by the seeder; fall back to the shorter key used in admin settings
+        $hero = SiteSetting::get('homepage.hero', SiteSetting::get('hero', [
             'title' => 'The marketplace for high-quality code',
             'subtitle' => 'Scripts, plugins, themes, and digital assets.',
-        ]);
+        ]));
 
         return view('home.index', compact('featured', 'latest', 'categories', 'blog', 'hero'));
     }
