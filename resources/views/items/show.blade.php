@@ -22,18 +22,19 @@
       }
   }
   $descriptionHtml = \App\Support\AdSlots::injectAfterParagraphs($descriptionHtml, 'product_middle_description');
+  $catTrail = $item->category ? $item->category->breadcrumbTrail() : [];
 @endphp
 
 {!! \App\Support\AdSlots::render('product_before') !!}
 
-<nav class="mb-4 text-[13px] text-slate-500">
+<nav class="mb-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[13px] text-slate-500" aria-label="Breadcrumb">
   <a href="{{ route('home') }}" class="hover:text-[#82b440]">Home</a>
-  <span class="mx-1.5 text-slate-300">/</span>
-  @if($item->category)
-    <a href="{{ route('category', $item->category->slug) }}" class="hover:text-[#82b440]">{{ $item->category->name }}</a>
-    <span class="mx-1.5 text-slate-300">/</span>
-  @endif
-  <span class="text-slate-700">{{ \Illuminate\Support\Str::limit($item->title, 48) }}</span>
+  @foreach($catTrail as $crumb)
+    <span class="text-slate-300">/</span>
+    <a href="{{ route('category', $crumb->slug) }}" class="hover:text-[#82b440]">{{ $crumb->name }}</a>
+  @endforeach
+  <span class="text-slate-300">/</span>
+  <span class="text-slate-700">{{ \Illuminate\Support\Str::limit($item->title, 56) }}</span>
 </nav>
 
 <div class="grid gap-8 lg:grid-cols-12">
