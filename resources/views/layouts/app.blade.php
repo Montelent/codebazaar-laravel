@@ -22,6 +22,11 @@
         $cFooterBg = $theme['footer_bg'] ?? '#1a1a1a';
         $cFooterText = $theme['footer_text'] ?? '#b0b0b0';
         $cAnnBg = $theme['announcement_bg'] ?? '#2c3e50';
+        $cartCount = 0;
+        try {
+            $cart = session('cart', []);
+            $cartCount = is_array($cart) ? count($cart) : 0;
+        } catch (\Throwable $e) {}
     @endphp
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -71,12 +76,40 @@
       .cc-header-search input { width: 100%; height: 40px; border: 1px solid #d0d0d0; border-radius: 4px; padding: 0 40px 0 14px; font-size: 14px; background: #fff; }
       .cc-header-search input:focus { outline: none; border-color: var(--cc-green); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc-green) 25%, transparent); }
       .cc-header-search button { position: absolute; right: 0; top: 0; bottom: 0; width: 42px; border: 0; background: transparent; color: #666; cursor: pointer; }
-      .cc-header-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
-      .cc-header-actions a, .cc-header-actions button { font-size: 13px; font-weight: 500; color: #444; text-decoration: none; background: none; border: 0; cursor: pointer; padding: 0; }
-      .cc-header-actions a:hover { color: var(--cc-green); }
-      .cc-btn-cart { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #ddd !important; border-radius: 4px; padding: 7px 12px !important; font-weight: 600 !important; }
-      .cc-btn-green { background: var(--cc-green) !important; color: #fff !important; border-radius: 4px; padding: 8px 14px !important; font-weight: 600 !important; font-size: 13px !important; text-decoration: none; }
+      .cc-header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+      .cc-header-actions a, .cc-header-actions button {
+        font-size: 13px; font-weight: 500; color: #444; text-decoration: none; background: none; border: 0; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px;
+      }
+      .cc-header-actions a:hover, .cc-header-actions button:hover { color: var(--cc-green); background: rgba(0,0,0,.04); }
+      .cc-header-actions svg { width: 18px; height: 18px; flex-shrink: 0; }
+      .cc-btn-cart {
+        position: relative;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+        padding: 7px 12px !important;
+        font-weight: 600 !important;
+      }
+      .cc-btn-cart:hover { border-color: var(--cc-green) !important; }
+      .cc-cart-badge {
+        position: absolute; top: -6px; right: -6px;
+        min-width: 18px; height: 18px; padding: 0 5px;
+        border-radius: 999px; background: var(--cc-green); color: #fff;
+        font-size: 10px; font-weight: 700; line-height: 18px; text-align: center;
+      }
+      .cc-btn-green {
+        background: var(--cc-green) !important; color: #fff !important;
+        border-radius: 6px; padding: 8px 14px !important; font-weight: 600 !important; font-size: 13px !important;
+        text-decoration: none; gap: 6px;
+      }
       .cc-btn-green:hover { background: var(--cc-green-hover) !important; color: #fff !important; }
+      .cc-btn-green svg { stroke: #fff; }
+      .cc-icon-label { }
+      @media (max-width: 640px) {
+        .cc-icon-label { display: none; }
+        .cc-btn-cart { padding: 8px !important; }
+        .cc-btn-green { padding: 8px 10px !important; }
+      }
       .cc-subnav { background: var(--cc-header-bg); border-bottom: 1px solid #e8e8e8; }
       .cc-subnav-inner { display: flex; align-items: center; gap: 4px; overflow-x: auto; min-height: 42px; scrollbar-width: none; }
       .cc-subnav-inner::-webkit-scrollbar { display: none; }
@@ -93,7 +126,12 @@
       .cc-drawer.is-open { display: block; }
       .cc-drawer-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
       .cc-drawer-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 88vw); background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.12); padding: 16px; overflow-y: auto; }
-      .cc-drawer-panel a { display: block; padding: 12px 8px; color: #1e293b; text-decoration: none; font-weight: 500; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+      .cc-drawer-panel a {
+        display: flex; align-items: center; gap: 10px;
+        padding: 12px 8px; color: #1e293b; text-decoration: none; font-weight: 500;
+        border-bottom: 1px solid #f1f5f9; font-size: 14px;
+      }
+      .cc-drawer-panel a svg { width: 18px; height: 18px; flex-shrink: 0; color: #64748b; }
       .cc-footer { background: var(--cc-footer-bg); color: var(--cc-footer-text); margin-top: 56px; }
       .cc-footer a { color: inherit; text-decoration: none; }
       .cc-footer a:hover { color: #fff; }
@@ -126,11 +164,12 @@
       .item-body code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, monospace; font-size: 13px; }
       .item-body pre code { background: transparent; padding: 0; color: inherit; }
       .cc-ad-slot { text-align: center; overflow: hidden; }
-      /* Map common hardcoded Envato green utility classes to theme primary */
       .text-\[\#82b440\], .hover\:text-\[\#82b440\]:hover { color: var(--cc-green) !important; }
       .bg-\[\#82b440\], .hover\:bg-\[\#82b440\]:hover { background-color: var(--cc-green) !important; }
       .hover\:bg-\[\#6f9a36\]:hover { background-color: var(--cc-green-hover) !important; }
+      .border-\[\# generically82b440\], .hover\:border-\[\#82b440\]:hover { border-color: var(--cc-green) !important; }
       .border-\[\#82b440\], .hover\:border-\[\#82b440\]:hover { border-color: var(--cc-green) !important; }
+ inv .bg-\[\#1b2838\] { background-color: var(--cc-secondary) !important; }
       .bg-\[\#1b2838\] { background-color: var(--cc-secondary) !important; }
       .focus\:ring-\[\#82b440\]:focus { --tw-ring-color: var(--cc-green) !important; }
     </style>
@@ -163,19 +202,46 @@
         <a href="{{ route('home') }}" class="cc-logo"><span class="cc-logo-mark">◆</span> CodeBazaar</a>
         <form action="{{ route('search') }}" method="get" class="cc-header-search" role="search">
             <input type="search" name="q" value="{{ request('q') }}" placeholder="Search for items…" autocomplete="off">
-            <button type="submit" aria-label="Search"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg></button>
+            <button type="submit" aria-label="Search">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+            </button>
         </form>
         <div class="cc-header-actions">
-            <a href="{{ route('cart.index') }}" class="cc-btn-cart">Cart</a>
+            <a href="{{ route('cart.index') }}" class="cc-btn-cart" title="Cart">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.4.4-.1 1.1.4 1.1H19M17 21a1 1 0 100-2 1 1 0 000 2zM9 21a1 1 0 100-2 1 1 0 000 2z"/></svg>
+                <span class="cc-icon-label">Cart</span>
+                @if($cartCount > 0)<span class="cc-cart-badge">{{ $cartCount > 99 ? '99+' : $cartCount }}</span>@endif
+            </a>
             @auth
-                @if(auth()->user()->isAdmin())<a href="{{ route('admin.dashboard') }}" class="cc-hide-mobile">Admin</a>@endif
-                <a href="{{ route('account.index') }}" class="cc-hide-mobile">{{ auth()->user()->name ?: 'Account' }}</a>
-                <form method="post" action="{{ route('logout') }}" class="cc-hide-mobile">@csrf<button type="submit">Logout</button></form>
+                @if(auth()->user()->isAdmin())
+                    <a href="{{ route('admin.dashboard') }}" class="cc-hide-mobile" title="Admin">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="cc-icon-label">Admin</span>
+                    </a>
+                @endif
+                <a href="{{ route('account.index') }}" class="cc-hide-mobile" title="Account">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <span class="cc-icon-label">{{ \Illuminate\Support\Str::limit(auth()->user()->name ?: 'Account', 12) }}</span>
+                </a>
+                <form method="post" action="{{ route('logout') }}" class="cc-hide-mobile">@csrf
+                    <button type="submit" title="Logout">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        <span class="cc-icon-label">Logout</span>
+                    </button>
+                </form>
             @else
-                <a href="{{ route('login') }}" class="cc-hide-mobile">Sign in</a>
-                <a href="{{ route('register') }}" class="cc-btn-green cc-hide-mobile">Create account</a>
+                <a href="{{ route('login') }}" class="cc-hide-mobile" title="Sign in">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                    <span class="cc-icon-label">Sign in</span>
+                </a>
+                <a href="{{ route('register') }}" class="cc-btn-green cc-hide-mobile" title="Create account">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                    <span class="cc-icon-label">Create account</span>
+                </a>
             @endauth
-            <button type="button" class="cc-menu-btn" id="cc-menu-open" aria-label="Menu"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+            <button type="button" class="cc-menu-btn" id="cc-menu-open" aria-label="Menu">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
         </div>
     </div>
     <div class="cc-subnav">
@@ -201,17 +267,46 @@
             <strong>Menu</strong>
             <button type="button" class="cc-menu-btn" id="cc-menu-close" aria-label="Close">✕</button>
         </div>
-        <a href="{{ route('search') }}">All Items</a>
-        @foreach($navCategories as $cat)<a href="{{ route('category', $cat->slug) }}">{{ $cat->name }}</a>@endforeach
-        @foreach($nav as $link)<a href="{{ $link['url'] ?? '#' }}">{{ $link['label'] ?? '' }}</a>@endforeach
-        <a href="{{ route('cart.index') }}">Cart</a>
+        <a href="{{ route('search') }}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+            All Items
+        </a>
+        @foreach($navCategories as $cat)
+            <a href="{{ route('category', $cat->slug) }}">{{ $cat->name }}</a>
+        @endforeach
+        @foreach($nav as $link)
+            <a href="{{ $link['url'] ?? '#' }}">{{ $link['label'] ?? '' }}</a>
+        @endforeach
+        <a href="{{ route('cart.index') }}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.4.4-.1 1.1.4 1.1H19M17 21a1 1 0 100-2 1 1 0 000 2zM9 21a1 1 0 100-2 1 1 0 000 2z"/></svg>
+            Cart @if($cartCount > 0)({{ $cartCount }})@endif
+        </a>
         @auth
-            <a href="{{ route('account.index') }}">Account</a>
-            @if(auth()->user()->isAdmin())<a href="{{ route('admin.dashboard') }}">Admin</a>@endif
-            <form method="post" action="{{ route('logout') }}">@csrf<button type="submit" style="width:100%;text-align:left;padding:12px 8px;border:0;border-bottom:1px solid #f1f5f9;background:none;font-weight:500">Logout</button></form>
+            <a href="{{ route('account.index') }}">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Account
+            </a>
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('admin.dashboard') }}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Admin
+                </a>
+            @endif
+            <form method="post" action="{{ route('logout') }}">@csrf
+                <button type="submit" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:12px 8px;border:0;border-bottom:1px solid #f1f5f9;background:none;font-weight:500;font-size:14px;cursor:pointer">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Logout
+                </button>
+            </form>
         @else
-            <a href="{{ route('login') }}">Sign in</a>
-            <a href="{{ route('register') }}">Create account</a>
+            <a href="{{ route('login') }}">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                Sign in
+            </a>
+            <a href="{{ route('register') }}">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                Create account
+            </a>
         @endauth
     </div>
 </div>
