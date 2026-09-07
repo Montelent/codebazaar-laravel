@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Item;
 use App\Models\SiteSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
@@ -185,7 +186,6 @@ class ProductController extends Controller
     {
         $files = [];
 
-        // Preferred: structured rows from the form
         $rows = $request->input('download_files', []);
         if (is_array($rows)) {
             foreach ($rows as $row) {
@@ -208,7 +208,6 @@ class ProductController extends Controller
             }
         }
 
-        // Fallback: legacy single main_file_url field
         if (count($files) === 0 && $request->filled('main_file_url')) {
             $files[] = [
                 'label' => 'Main file',
@@ -268,8 +267,14 @@ class ProductController extends Controller
         $data['attributes'] = $attrs;
 
         $downloadFiles = $this->parseDownloadFiles($request);
-        $data['download_files'] = $downloadFiles;
-        // Keep main_file_url in sync (first main file, or first file)
+
+        // Only write JSON column after migration has run
+        if (Schema::hasColumn('items', 'download_files')) {
+            $data['download_files'] = $downloadFiles;
+        } else {
+            unset($data['download_files']);
+        }
+
         $primary = null;
         foreach ($downloadFiles as $f) {
             if (($f['type'] ?? '') === 'main') {
@@ -277,7 +282,7 @@ class ProductController extends Controller
                 break;
             }
         }
-        $data['main_file_url'] = $primary ?: ($downloadFiles[0]['url'] ?? null);
+        $data['main_file_url'] = $primary ?: ($downloadFiles[0]['url'] ?? ($data['main_file_url'] ?? null));
 
         unset($data['features_text'], $data['gallery_text'], $data['tags_text'], $data['attributes_json']);
 
