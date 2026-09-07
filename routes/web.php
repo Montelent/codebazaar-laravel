@@ -13,6 +13,7 @@ use App\Http\Controllers\InstallController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\Admin\AdSettingsController;
 use App\Http\Controllers\Admin\AttributeController;
@@ -54,6 +55,10 @@ if (! Installer::isInstalled()) {
 } else {
     Route::get('/', [HomeController::class, 'index'])->name('home');
 }
+
+Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml', [SitemapController::class, 'xml'])->name('sitemap.xml');
+Route::get('/sitemap', [SitemapController::class, 'html'])->name('sitemap.html');
 
 Route::get('/search', [ItemController::class, 'search'])->name('search');
 Route::get('/category/{slug}', [ItemController::class, 'category'])->name('category');
