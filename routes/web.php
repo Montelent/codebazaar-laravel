@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SchemaSettingsController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SettingsHubController;
+use App\Http\Controllers\Admin\StorageSettingsController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\UserAdminController;
@@ -105,7 +106,6 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // System tools — GET+token (Hostinger-safe) and POST
     Route::get('/tools', [SystemToolsController::class, 'index'])->name('tools.index');
     Route::match(['get', 'post'], '/tools/run/{action}', [SystemToolsController::class, 'run'])
         ->where('action', 'migrate|clear-cache')
@@ -114,7 +114,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/tools/clear-cache', [SystemToolsController::class, 'clearCache'])->name('tools.clear-cache');
     Route::match(['get', 'post'], '/migrate', [SystemToolsController::class, 'migrate'])->name('migrate');
 
-    // Must be registered before products resource
     Route::get('/products/category-attributes/{category}', [ProductController::class, 'categoryAttributes'])
         ->name('products.category-attributes');
 
@@ -126,6 +125,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/tags', [TagController::class, 'index'])->name('tags.index');
     Route::put('/tags', [TagController::class, 'update'])->name('tags.update');
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+    Route::get('/media/json', [MediaController::class, 'json'])->name('media.json');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::delete('/media/{medium}', [MediaController::class, 'destroy'])->name('media.destroy');
     Route::get('/newsletter', [NewsletterController::class, 'index'])->name('newsletter.index');
@@ -145,6 +145,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/settings/payments', [PaymentSettingsController::class, 'edit'])->name('settings.payments');
     Route::put('/settings/payments', [PaymentSettingsController::class, 'update'])->name('settings.payments.update');
+    Route::get('/settings/storage', [StorageSettingsController::class, 'edit'])->name('settings.storage');
+    Route::put('/settings/storage', [StorageSettingsController::class, 'update'])->name('settings.storage.update');
     Route::get('/settings/navigation', [NavigationSettingsController::class, 'edit'])->name('settings.navigation');
     Route::put('/settings/navigation', [NavigationSettingsController::class, 'update'])->name('settings.navigation.update');
     Route::get('/settings/header-footer', [HeaderFooterSettingsController::class, 'edit'])->name('settings.header_footer');
