@@ -57,10 +57,20 @@
 {!! $siteCodes['body_start'] ?? '' !!}
 @php
     $ann = \App\Models\SiteSetting::getValue('announcement', ['enabled' => false, 'text' => '']);
-    $nav = \App\Models\SiteSetting::getValue('nav_header', [
+    $navDefaults = [
         ['label' => 'All items', 'url' => '/search', 'open_new' => false],
         ['label' => 'Blog', 'url' => '/blog', 'open_new' => false],
         ['label' => 'Licenses', 'url' => '/pricing/licenses', 'open_new' => false],
+    ];
+    $legacyNav = \App\Models\SiteSetting::getValue('nav_header', $navDefaults);
+    $navDesktop = \App\Models\SiteSetting::getValue('nav_desktop', $legacyNav);
+    $navMobile = \App\Models\SiteSetting::getValue('nav_mobile', $legacyNav);
+    if (! is_array($navDesktop)) { $navDesktop = $navDefaults; }
+    if (! is_array($navMobile)) { $navMobile = $navDefaults; }
+    $navOptions = \App\Models\SiteSetting::getValue('nav_options', [
+        'desktop_show_categories' => true,
+        'mobile_show_categories' => true,
+        'mobile_show_account_links' => true,
     ]);
     $footer = \App\Models\SiteSetting::getValue('footer', ['about' => 'The marketplace for high-quality code, scripts, plugins, and digital assets.', 'columns' => [], 'social' => []]);
     try {
@@ -122,11 +132,12 @@
     </div>
     <div class="cc-subnav">
         <div class="cc-container cc-subnav-inner">
-            <a href="{{ route('search') }}">All Items</a>
-            @foreach($navCategories as $cat)
+            @if(!empty($navOptions['desktop_show_categories']))
+              @foreach($navCategories as $cat)
                 <a href="{{ route('category', $cat->slug) }}">{{ $cat->name }}</a>
-            @endforeach
-            @foreach($nav as $link)
+              @endforeach
+            @endif
+            @foreach($navDesktop as $link)
                 @php $href = $link['url'] ?? '#'; @endphp
                 <a href="{{ $href }}" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
             @endforeach
@@ -143,16 +154,15 @@
             <strong>Menu</strong>
             <button type="button" class="cc-menu-btn" id="cc-menu-close" aria-label="Close">✕</button>
         </div>
-        <a href="{{ route('search') }}">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
-            All Items
-        </a>
-        @foreach($navCategories as $cat)
+        @if(!empty($navOptions['mobile_show_categories']))
+          @foreach($navCategories as $cat)
             <a href="{{ route('category', $cat->slug) }}">{{ $cat->name }}</a>
+          @endforeach
+        @endif
+        @foreach($navMobile as $link)
+            <a href="{{ $link['url'] ?? '#' }}" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
         @endforeach
-        @foreach($nav as $link)
-            <a href="{{ $link['url'] ?? '#' }}">{{ $link['label'] ?? '' }}</a>
-        @endforeach
+        @if(!isset($navOptions['mobile_show_account_links']) || !empty($navOptions['mobile_show_account_links']))
         <a href="{{ route('cart.index') }}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.4.4-.1 1.1.4 1.1H19M17 21a1 1 0 100-2 1 1 0 000 2zM9 21a1 1 0 100-2 1 1 0 000 2z"/></svg>
             Cart @if($cartCount > 0)({{ $cartCount }})@endif
@@ -184,6 +194,7 @@
                 Create account
             </a>
         @endauth
+        @endif
     </div>
 </div>
 
@@ -204,23 +215,43 @@
         <div class="sm:col-span-2">
             <p class="text-lg font-semibold text-white">CodeBazaar</p>
             <p class="mt-2 max-w-md text-sm" style="color:var(--cc-footer-text)">{{ $footer['about'] ?? '' }}</p>
+            @php $social = $footer['social'] ?? []; @endphp
+            @if(!empty($social['twitter']) || !empty($social['facebook']) || !empty($social['github']))
+              <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                @if(!empty($social['twitter']))<a href="{{ $social['twitter'] }}" target="_blank" rel="noopener">Twitter / X</a>@endif
+                @if(!empty($social['facebook']))<a href="{{ $social['facebook'] }}" target="_blank" rel="noopener">Facebook</a>@endif
+                @if(!empty($social['github']))<a href="{{ $social['github'] }}" target="_blank" rel="noopener">GitHub</a>@endif
+              </div>
+            @endif
         </div>
-        <div>
+        @php $footerCols = $footer['columns'] ?? []; @endphp
+        @forelse($footerCols as $col)
+          <div>
+            <p class="text-sm font-semibold text-white">{{ $col['title'] ?? '' }}</p>
+            <ul class="mt-3 space-y-2 text-sm">
+              @foreach(($col['links'] ?? []) as $flink)
+                <li><a href="{{ $flink['url'] ?? '#' }}">{{ $flink['label'] ?? '' }}</a></li>
+              @endforeach
+            </ul>
+          </div>
+        @empty
+          <div>
             <p class="text-sm font-semibold text-white">Explore</p>
             <ul class="mt-3 space-y-2 text-sm">
                 <li><a href="{{ route('search') }}">All items</a></li>
                 <li><a href="{{ route('blog.index') }}">Blog</a></li>
                 <li><a href="{{ route('licenses.public') }}">Licenses</a></li>
             </ul>
-        </div>
-        <div>
+          </div>
+          <div>
             <p class="text-sm font-semibold text-white">Account</p>
             <ul class="mt-3 space-y-2 text-sm">
                 <li><a href="{{ route('login') }}">Sign in</a></li>
                 <li><a href="{{ route('register') }}">Create account</a></li>
                 <li><a href="{{ route('cart.index') }}">Cart</a></li>
             </ul>
-        </div>
+          </div>
+        @endforelse
     </div>
     {!! \App\Support\AdSlots::render('footer_bottom') !!}
     <div class="border-t py-4 text-center text-xs" style="border-color:color-mix(in srgb, var(--cc-footer-bg) 70%, #fff);color:var(--cc-footer-text)">&copy; {{ date('Y') }} CodeBazaar</div>
