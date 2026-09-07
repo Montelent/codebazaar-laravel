@@ -57,17 +57,92 @@ class ProductController extends Controller
         return redirect()->route('admin.products.index')->with('success', 'Product deleted.');
     }
 
+    /** AJAX: attribute options for a category (and parent fallback). */
+    public function categoryAttributes(Category $category)
+    {
+        return response()->json([
+            'category' => ['id' => $category->id, 'name' => $category->name, 'slug' => $category->slug],
+            'attributes' => $this->resolveAttributeOptions($category),
+        ]);
+    }
+
     protected function formData(Item $item): array
     {
-        $categories = Category::orderBy('name')->get();
-        $attrSchema = [];
-        if ($item->category_id) {
-            $cat = $categories->firstWhere('id', $item->category_id);
-            $attrSchema = $cat?->attribute_schema ?? [];
+        $allCategories = Category::with('parent', 'children')->orderBy('name')->get();
+        $parents = $allCategories->whereNull('parent_id')->values();
+        $childrenByParent = $allCategories->whereNotNull('parent_id')->groupBy('parent_id');
+
+        $selectedCategory = $item->category_id
+            ? $allCategories->firstWhere('id', $item->category_id)
+            : null;
+
+        $selectedParentId = null;
+        if ($selectedCategory) {
+            $selectedParentId = $selectedCategory->parent_id ?: $selectedCategory->id;
         }
+
+        $attrOptions = $selectedCategory
+            ? $this->resolveAttributeOptions($selectedCategory)
+            : [];
+
         $tagPresets = SiteSetting::getValue('tags', ['React', 'Laravel', 'WordPress', 'Vue', 'PHP', 'HTML', 'SaaS', 'Dashboard']);
 
-        return compact('item', 'categories', 'attrSchema', 'tagPresets');
+        return [
+            'item' => $item,
+            'parents' => $parents,
+            'childrenByParent' => $childrenByParent,
+            'allCategories' => $allCategories,
+            'selectedParentId' => $selectedParentId,
+            'attrOptions' => $attrOptions,
+            'tagPresets' => $tagPresets,
+        ];
+    }
+
+    /**
+     * Load attribute presets from SiteSetting `category_attributes` by category slug,
+     * falling back to parent slug, then empty.
+     */
+    protected function resolveAttributeOptions(Category $category): array
+    {
+        $all = SiteSetting::getValue('category_attributes', AttributeController::defaults());
+        if (! is_array($all)) {
+            $all = AttributeController::defaults();
+        }
+
+        $slug = $category->slug;
+        $attrs = $all[$slug] ?? $all[str_replace('_', '-', $slug)] ?? null;
+
+        if ((! $attrs || ! is_array($attrs)) && $category->parent_id) {
+            $parent = $category->parent ?: Category::find($category->parent_id);
+            if ($parent) {
+                $ps = $parent->slug;
+                $attrs = $all[$ps] ?? $all[str_replace('_', '-', $ps)] ?? null;
+            }
+        }
+
+        // Legacy per-category attribute_schema on the model (array of keys/labels)
+        if ((! $attrs || ! is_array($attrs) || count($attrs) === 0) && ! empty($category->attribute_schema)) {
+            $schema = $category->attribute_schema;
+            $attrs = [];
+            if (is_array($schema)) {
+                // Could be label => values map OR list of {key,label}
+                $isList = array_is_list($schema);
+                if ($isList) {
+                    foreach ($schema as $row) {
+                        if (is_array($row)) {
+                            $label = $row['label'] ?? $row['key'] ?? null;
+                            if ($label) {
+                                $attrs[$label] = $row['options'] ?? $row['values'] ?? [];
+                            }
+                        }
+                    }
+                } else {
+                    $attrs = $schema;
+                }
+            }
+        }
+
+        return is_array($attrs) ? $attrs : [];
     }
 
     protected function applyFree(array $data): array
@@ -134,7 +209,6 @@ class ProductController extends Controller
                 $attrs = $decoded;
             }
         }
-        // Also accept attr[key][] form fields
         foreach ($request->input('attr', []) as $key => $vals) {
             $attrs[$key] = is_array($vals) ? array_values(array_filter($vals)) : [$vals];
         }

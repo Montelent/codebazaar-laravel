@@ -5,9 +5,14 @@
   $featuresText = old('features_text', is_array($item->features) ? implode("\n", $item->features) : '');
   $galleryText = old('gallery_text', is_array($item->gallery_urls) ? implode("\n", $item->gallery_urls) : '');
   $tagsText = old('tags_text', is_array($item->tags) ? implode(', ', $item->tags) : '');
-  $attrs = old('attributes_json') ? json_decode(old('attributes_json'), true) : ($item->attributes ?? []);
+  $savedAttrs = old('attr') ?: ($item->attributes ?? []);
+  if (!is_array($savedAttrs)) $savedAttrs = [];
+  $childrenMap = [];
+  foreach ($childrenByParent as $pid => $kids) {
+    $childrenMap[(string)$pid] = $kids->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values()->all();
+  }
 @endphp
-<form method="post" action="{{ $item->exists ? route('admin.products.update', $item) : route('admin.products.store') }}" class="space-y-6">
+<form method="post" action="{{ $item->exists ? route('admin.products.update', $item) : route('admin.products.store') }}" class="space-y-6" id="product-form">
 @csrf
 @if($item->exists) @method('PUT') @endif
 
@@ -62,20 +67,47 @@
 
 <section class="rounded-xl border bg-white p-6 shadow-sm space-y-4">
   <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Category, tags & attributes</h2>
-  <div><label class="text-sm">Category</label>
-    <select name="category_id" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
-      <option value="">—</option>
-      @foreach($categories as $c)
-        <option value="{{ $c->id }}" @selected(old('category_id', $item->category_id)==$c->id)>{{ $c->name }}</option>
-      @endforeach
-    </select></div>
-  <div><label class="text-sm">Tags (comma-separated)</label>
+
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label class="text-sm font-medium">Parent category</label>
+      <select id="parent_category" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <option value="">— Select —</option>
+        @foreach($parents as $p)
+          <option value="{{ $p->id }}" @selected((string)old('parent_hint', $selectedParentId) === (string)$p->id)>{{ $p->name }}</option>
+        @endforeach
+      </select>
+    </div>
+    <div>
+      <label class="text-sm font-medium">Sub-category <span class="font-normal text-slate-400">(optional)</span></label>
+      <select id="sub_category" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <option value="">— None (use parent) —</option>
+      </select>
+      <p class="mt-1 text-xs text-slate-500">Create sub-categories under <a class="text-emerald-700" href="{{ route('admin.categories.index') }}">Categories</a> by setting a Parent.</p>
+    </div>
+  </div>
+
+  {{-- Actual field saved --}}
+  <input type="hidden" name="category_id" id="category_id" value="{{ old('category_id', $item->category_id) }}">
+
+  <div>
+    <label class="text-sm font-medium">Tags (comma-separated)</label>
     <input name="tags_text" value="{{ $tagsText }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" placeholder="React, Dashboard">
     <p class="mt-1 text-xs text-slate-500">Suggestions: {{ implode(', ', $tagPresets ?? []) }}</p>
   </div>
-  <div><label class="text-sm">Attributes JSON (CodeCanyon-style key → values)</label>
-    <textarea name="attributes_json" rows="8" class="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs" placeholder='{"Compatible Browsers":["Chrome","Firefox"],"Files Included":["JavaScript JS","CSS"]}'>{{ old('attributes_json', !empty($attrs) ? json_encode($attrs, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) : '') }}</textarea>
+
+  <div>
+    <label class="text-sm font-medium">Attributes</label>
+    <p class="text-xs text-slate-500">Options come from <a class="text-emerald-700" href="{{ route('admin.attributes.index') }}">Attributes</a> for the selected category (or its parent).</p>
+    <div id="attr-picker" class="mt-3 space-y-4">
+      <p class="text-sm text-slate-400" id="attr-empty">Select a category to load attributes.</p>
+    </div>
   </div>
+
+  <details class="rounded-lg border border-slate-200 p-3">
+    <summary class="cursor-pointer text-sm font-medium text-slate-600">Advanced: attributes JSON</summary>
+    <textarea name="attributes_json" id="attributes_json" rows="6" class="mt-2 w-full rounded-lg border px-3 py-2 font-mono text-xs" placeholder='{"Compatible Browsers":["Chrome","Firefox"]}'>{{ old('attributes_json', !empty($savedAttrs) ? json_encode($savedAttrs, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) : '') }}</textarea>
+  </details>
 </section>
 
 <section class="rounded-xl border bg-white p-6 shadow-sm space-y-3">
@@ -87,10 +119,124 @@
     @endforeach
   </select>
   @if($item->exists)
-    <p class="text-xs text-slate-500">Created: {{ $item->created_at }} · Updated: {{ $item->updated_at }} (automatic, not editable)</p>
+    <p class="text-xs text-slate-500">Created: {{ $item->created_at }} · Updated: {{ $item->updated_at }}</p>
   @endif
 </section>
 
 <button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save product</button>
 </form>
+
+@push('scripts')
+<script>
+(function () {
+  const childrenMap = @json($childrenMap);
+  const initialCategoryId = @json(old('category_id', $item->category_id));
+  const initialParentId = @json(old('parent_hint', $selectedParentId));
+  const savedAttrs = @json($savedAttrs);
+  const attrUrlBase = @json(url('/admin/products/category-attributes'));
+
+  const parentSel = document.getElementById('parent_category');
+  const subSel = document.getElementById('sub_category');
+  const categoryIdInput = document.getElementById('category_id');
+  const picker = document.getElementById('attr-picker');
+  const attrEmpty = document.getElementById('attr-empty');
+  const jsonTa = document.getElementById('attributes_json');
+
+  function fillSubs(parentId, selectedSubId) {
+    subSel.innerHTML = '<option value="">— None (use parent) —</option>';
+    const kids = childrenMap[String(parentId)] || [];
+    kids.forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if (selectedSubId && String(selectedSubId) === String(c.id)) opt.selected = true;
+      subSel.appendChild(opt);
+    });
+  }
+
+  function effectiveCategoryId() {
+    if (subSel.value) return subSel.value;
+    return parentSel.value || '';
+  }
+
+  function syncCategoryId() {
+    categoryIdInput.value = effectiveCategoryId();
+  }
+
+  function isChecked(label, value) {
+    const arr = savedAttrs[label];
+    if (!arr) return false;
+    if (Array.isArray(arr)) return arr.map(String).includes(String(value));
+    return String(arr) === String(value);
+  }
+
+  function renderAttributes(attrs) {
+    picker.innerHTML = '';
+    if (!attrs || !Object.keys(attrs).length) {
+      picker.innerHTML = '<p class="text-sm text-slate-400">No attributes defined for this category. Configure them under Admin → Attributes.</p>';
+      return;
+    }
+    Object.keys(attrs).forEach(function (label) {
+      const values = Array.isArray(attrs[label]) ? attrs[label] : [attrs[label]];
+      const box = document.createElement('div');
+      box.className = 'rounded-lg border border-slate-100 bg-slate-50 p-3';
+      box.innerHTML = '<p class="text-sm font-semibold text-slate-700">' + label + '</p>';
+      const row = document.createElement('div');
+      row.className = 'mt-2 flex flex-wrap gap-3';
+      values.forEach(function (val) {
+        const id = 'attr_' + label.replace(/\W+/g, '_') + '_' + String(val).replace(/\W+/g, '_');
+        const lab = document.createElement('label');
+        lab.className = 'inline-flex items-center gap-1.5 text-sm text-slate-700';
+        const checked = isChecked(label, val) ? ' checked' : '';
+        lab.innerHTML = '<input type="checkbox" name="attr[' + label.replace(/"/g, '&quot;') + '][]" value="' +
+          String(val).replace(/"/g, '&quot;') + '" class="attr-cb"' + checked + '> ' + val;
+        row.appendChild(lab);
+      });
+      box.appendChild(row);
+      picker.appendChild(box);
+    });
+  }
+
+  function loadAttributes(catId) {
+    if (!catId) {
+      picker.innerHTML = '<p class="text-sm text-slate-400">Select a category to load attributes.</p>';
+      return;
+    }
+    picker.innerHTML = '<p class="text-sm text-slate-400">Loading attributes…</p>';
+    fetch(attrUrlBase + '/' + catId, {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderAttributes(data.attributes || {}); })
+      .catch(function () {
+        picker.innerHTML = '<p class="text-sm text-red-600">Could not load attributes.</p>';
+      });
+  }
+
+  parentSel.addEventListener('change', function () {
+    fillSubs(parentSel.value, null);
+    syncCategoryId();
+    loadAttributes(effectiveCategoryId());
+  });
+  subSel.addEventListener('change', function () {
+    syncCategoryId();
+    loadAttributes(effectiveCategoryId());
+  });
+
+  // Init
+  if (initialParentId) {
+    parentSel.value = String(initialParentId);
+    var subId = null;
+    if (initialCategoryId && String(initialCategoryId) !== String(initialParentId)) {
+      subId = initialCategoryId;
+    }
+    fillSubs(initialParentId, subId);
+  }
+  syncCategoryId();
+  if (effectiveCategoryId()) {
+    loadAttributes(effectiveCategoryId());
+  }
+})();
+</script>
+@endpush
 @endsection

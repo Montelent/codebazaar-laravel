@@ -65,10 +65,7 @@
         flex-shrink: 0;
       }
 
-      .cc-search-wrap {
-        position: relative;
-        width: 100%;
-      }
+      .cc-search-wrap { position: relative; width: 100%; }
       .cc-search {
         display: block;
         width: 100%;
@@ -140,7 +137,6 @@
       .cc-footer a { color: inherit; text-decoration: none; }
       .cc-footer a:hover { color: #fff; }
 
-      /* Header layout */
       .cc-header-inner {
         display: flex;
         flex-wrap: wrap;
@@ -165,23 +161,70 @@
       .cc-mobile-actions {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
       }
       .cc-mobile-search {
         display: block;
         width: 100%;
         order: 3;
       }
+      .cc-menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #fff;
+        color: #334155;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      /* Mobile drawer */
+      .cc-drawer {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: none;
+      }
+      .cc-drawer.is-open { display: block; }
+      .cc-drawer-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,.45);
+      }
+      .cc-drawer-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(300px, 88vw);
+        background: #fff;
+        box-shadow: -8px 0 24px rgba(0,0,0,.12);
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        overflow-y: auto;
+      }
+      .cc-drawer-panel a {
+        display: block;
+        padding: 12px 8px;
+        color: #1e293b;
+        text-decoration: none;
+        font-weight: 500;
+        border-bottom: 1px solid #f1f5f9;
+      }
+      .cc-drawer-panel a:hover { color: var(--cc-green); }
 
       @media (min-width: 768px) {
-        .cc-header-inner {
-          flex-wrap: nowrap;
-          gap: 16px;
-        }
+        .cc-header-inner { flex-wrap: nowrap; gap: 16px; }
         .cc-header-search-desktop { display: block; }
         .cc-desktop-nav { display: flex; }
         .cc-mobile-actions { display: none; }
         .cc-mobile-search { display: none; }
+        .cc-menu-btn { display: none; }
       }
 
       @media (min-width: 1024px) {
@@ -253,15 +296,9 @@
 
         <div class="cc-mobile-actions">
             <a href="{{ route('cart.index') }}" class="cc-nav-link">Cart</a>
-            @auth
-                @if(auth()->user()->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}" class="cc-btn-primary" style="padding:8px 12px;font-size:12px">Admin</a>
-                @else
-                    <a href="{{ route('account.index') }}" class="cc-nav-link">Account</a>
-                @endif
-            @else
-                <a href="{{ route('login') }}" class="cc-btn-primary" style="padding:8px 12px;font-size:12px">Sign in</a>
-            @endauth
+            <button type="button" class="cc-menu-btn" id="cc-menu-open" aria-label="Open menu">
+                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
         </div>
 
         <form action="{{ route('search') }}" method="get" class="cc-mobile-search">
@@ -272,6 +309,39 @@
         </form>
     </div>
 </header>
+
+{{-- Mobile navigation drawer --}}
+<div class="cc-drawer" id="cc-drawer" aria-hidden="true">
+    <div class="cc-drawer-backdrop" id="cc-drawer-backdrop"></div>
+    <div class="cc-drawer-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <strong>Menu</strong>
+            <button type="button" class="cc-menu-btn" id="cc-menu-close" aria-label="Close menu">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        @foreach($nav as $link)
+          @php $href = $link['url'] ?? '#'; @endphp
+          <a href="{{ $href }}" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
+        @endforeach
+        <a href="{{ route('search') }}">Browse all</a>
+        <a href="{{ route('cart.index') }}">Cart</a>
+        @auth
+            <a href="{{ route('account.index') }}">Account</a>
+            <a href="{{ route('account.collections') }}">Collections</a>
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('admin.dashboard') }}">Admin</a>
+            @endif
+            <form method="post" action="{{ route('logout') }}">@csrf
+                <button type="submit" style="width:100%;text-align:left;padding:12px 8px;background:none;border:0;border-bottom:1px solid #f1f5f9;font-weight:500;cursor:pointer">Logout</button>
+            </form>
+        @else
+            <a href="{{ route('login') }}">Sign in</a>
+            <a href="{{ route('register') }}">Join free</a>
+        @endauth
+    </div>
+</div>
+
 @if(session('success'))
     <div class="cc-container" style="padding-top:16px"><div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{{ session('success') }}</div></div>
 @endif
@@ -304,6 +374,29 @@
     </div>
     <div class="border-t border-[#2a2a2a] py-4 text-center text-xs text-[#777]">&copy; {{ date('Y') }} CodeBazaar</div>
 </footer>
+<script>
+(function () {
+  var drawer = document.getElementById('cc-drawer');
+  var openBtn = document.getElementById('cc-menu-open');
+  var closeBtn = document.getElementById('cc-menu-close');
+  var backdrop = document.getElementById('cc-drawer-backdrop');
+  function open() {
+    if (!drawer) return;
+    drawer.classList.add('is-open');
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    if (!drawer) return;
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  if (openBtn) openBtn.addEventListener('click', open);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  if (backdrop) backdrop.addEventListener('click', close);
+})();
+</script>
 @stack('scripts')
 </body>
 </html>
