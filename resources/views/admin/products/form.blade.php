@@ -11,6 +11,13 @@
   foreach ($childrenByParent as $pid => $kids) {
     $childrenMap[(string)$pid] = $kids->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values()->all();
   }
+  $initialDownloads = old('download_files');
+  if (!is_array($initialDownloads)) {
+    $initialDownloads = $downloadFiles ?? [];
+  }
+  if (empty($initialDownloads) && !empty(old('main_file_url', $item->main_file_url))) {
+    $initialDownloads = [['label' => 'Main file', 'url' => old('main_file_url', $item->main_file_url), 'type' => 'main']];
+  }
 @endphp
 <form method="post" action="{{ $item->exists ? route('admin.products.update', $item) : route('admin.products.store') }}" class="space-y-6" id="product-form">
 @csrf
@@ -59,7 +66,6 @@
     <a href="{{ route('admin.settings.storage') }}" class="text-xs text-emerald-700">Storage settings →</a>
   </div>
 
-  {{-- Thumbnail --}}
   <div class="rounded-lg border border-slate-100 p-4" data-media-field="thumbnail">
     <label class="text-sm font-medium">Thumbnail</label>
     <div class="mt-2 flex flex-wrap gap-2 text-xs">
@@ -95,7 +101,6 @@
     <img id="thumbnail_preview" src="{{ old('thumbnail_url', $item->thumbnail_url) }}" alt="" class="mt-3 h-24 rounded-lg border object-cover {{ old('thumbnail_url', $item->thumbnail_url) ? '' : 'hidden' }}">
   </div>
 
-  {{-- Screenshots --}}
   <div class="rounded-lg border border-slate-100 p-4" data-media-field="gallery">
     <label class="text-sm font-medium">Screenshots</label>
     <p class="text-xs text-slate-500">One image URL per line (or upload / pick multiple).</p>
@@ -136,38 +141,51 @@
     <input name="demo_url" value="{{ old('demo_url', $item->demo_url) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
   </div>
 
-  {{-- Main file --}}
-  <div class="rounded-lg border border-slate-100 p-4" data-media-field="mainfile">
-    <label class="text-sm font-medium">Main download file</label>
-    <div class="mt-2 flex flex-wrap gap-2 text-xs">
-      <button type="button" class="media-tab rounded-full border px-3 py-1" data-tab="url">External / Drive URL</button>
-      <button type="button" class="media-tab rounded-full border px-3 py-1" data-tab="upload">Upload</button>
-      <button type="button" class="media-tab rounded-full border px-3 py-1" data-tab="library">Library</button>
-    </div>
-    <div class="media-pane mt-3" data-pane="url">
-      <input name="main_file_url" id="main_file_url" value="{{ old('main_file_url', $item->main_file_url) }}" class="w-full rounded-lg border px-3 py-2 text-sm" placeholder="https://… ZIP / Drive / S3 URL">
-    </div>
-    <div class="media-pane mt-3 hidden" data-pane="upload">
-      <div class="flex flex-wrap items-end gap-2">
-        <div class="flex-1 min-w-[140px]">
-          <label class="text-xs">Disk</label>
-          <select class="media-disk mt-1 w-full rounded-lg border px-2 py-2 text-sm">
-            <option value="local">Local</option>
-            <option value="s3">Amazon S3</option>
-            <option value="backblaze">Backblaze B2</option>
-            <option value="idrive">iDrive e2</option>
-          </select>
-        </div>
-        <div class="flex-[2] min-w-[180px]">
-          <label class="text-xs">File (ZIP etc.)</label>
-          <input type="file" class="media-file mt-1 block w-full text-sm">
-        </div>
-        <button type="button" class="media-upload-btn rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white">Upload</button>
+  <div class="rounded-lg border border-slate-100 p-4" data-media-field="mainfile" id="download-bundle">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <label class="text-sm font-medium">Download files (bundle)</label>
+        <p class="text-xs text-slate-500">Main product file plus optional addons / extra packages. Buyers see every file under Account → Downloads.</p>
       </div>
-      <p class="media-status mt-1 text-xs text-slate-500"></p>
+      <button type="button" id="add-download-row" class="rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">+ Add file / URL</button>
     </div>
-    <div class="media-pane mt-3 hidden" data-pane="library">
-      <button type="button" class="media-pick-btn rounded-lg border px-3 py-2 text-sm">Pick from media library</button>
+    <div id="download-rows" class="mt-3 space-y-3"></div>
+    <div class="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+      <p class="text-xs font-medium text-slate-600">Quick add via upload or library</p>
+      <div class="mt-2 flex flex-wrap gap-2 text-xs">
+        <button type="button" class="media-tab rounded-full border px-3 py-1 bg-emerald-50 border-emerald-500" data-tab="upload">Upload</button>
+        <button type="button" class="media-tab rounded-full border px-3 py-1" data-tab="library">Library</button>
+      </div>
+      <div class="media-pane mt-3" data-pane="upload">
+        <div class="flex flex-wrap items-end gap-2">
+          <div class="min-w-[120px]">
+            <label class="text-xs">Type</label>
+            <select id="bundle-upload-type" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm">
+              <option value="main">Main</option>
+              <option value="addon">Addon</option>
+              <option value="extra">Extra</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[140px]">
+            <label class="text-xs">Disk</label>
+            <select class="media-disk mt-1 w-full rounded-lg border px-2 py-2 text-sm">
+              <option value="local">Local</option>
+              <option value="s3">Amazon S3</option>
+              <option value="backblaze">Backblaze B2</option>
+              <option value="idrive">iDrive e2</option>
+            </select>
+          </div>
+          <div class="flex-[2] min-w-[160px]">
+            <label class="text-xs">File(s)</label>
+            <input type="file" multiple class="media-file mt-1 block w-full text-sm">
+          </div>
+          <button type="button" class="media-upload-btn rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white">Upload & add</button>
+        </div>
+        <p class="media-status mt-1 text-xs text-slate-500"></p>
+      </div>
+      <div class="media-pane mt-3 hidden" data-pane="library">
+        <button type="button" class="media-pick-btn rounded-lg border px-3 py-2 text-sm" data-multi="1">Add from media library</button>
+      </div>
     </div>
   </div>
 </section>
@@ -221,7 +239,6 @@
 <button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save product</button>
 </form>
 
-{{-- Media library modal --}}
 <div id="media-modal" class="fixed inset-0 z-50 hidden">
   <div class="absolute inset-0 bg-black/40" id="media-modal-backdrop"></div>
   <div class="absolute left-1/2 top-1/2 max-h-[80vh] w-[min(640px,94vw)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl bg-white p-4 shadow-xl">
@@ -237,10 +254,44 @@
 <script>
 (function () {
   const csrf = @json(csrf_token());
+  const initialDownloads = @json($initialDownloads);
+  let downloadIndex = 0;
+
+  function addDownloadRow(data) {
+    data = data || {};
+    const wrap = document.getElementById('download-rows');
+    if (!wrap) return;
+    const i = downloadIndex++;
+    const row = document.createElement('div');
+    row.className = 'download-row grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-12';
+    row.innerHTML =
+      '<div class="sm:col-span-3"><label class="text-xs text-slate-500">Label</label>' +
+      '<input name="download_files[' + i + '][label]" value="' + String(data.label || '').replace(/"/g,'"') + '" class="mt-1 w-full rounded border px-2 py-1.5 text-sm" placeholder="Main ZIP / Addon pack"></div>' +
+      '<div class="sm:col-span-5"><label class="text-xs text-slate-500">URL</label>' +
+      '<input name="download_files[' + i + '][url]" value="' + String(data.url || '').replace(/"/g,'"') + '" class="mt-1 w-full rounded border px-2 py-1.5 text-sm" placeholder="https://…"></div>' +
+      '<div class="sm:col-span-2"><label class="text-xs text-slate-500">Type</label>' +
+      '<select name="download_files[' + i + '][type]" class="mt-1 w-full rounded border px-2 py-1.5 text-sm">' +
+      '<option value="main"' + ((data.type||'main')==='main'?' selected':'') + '>Main</option>' +
+      '<option value="addon"' + (data.type==='addon'?' selected':'') + '>Addon</option>' +
+      '<option value="extra"' + (data.type==='extra'?' selected':'') + '>Extra</option></select></div>' +
+      '<div class="flex items-end sm:col-span-2"><button type="button" class="w-full rounded border border-red-200 px-2 py-1.5 text-sm text-red-600 hover:bg-red-50" data-remove>Remove</button></div>';
+    row.querySelector('[data-remove]').addEventListener('click', function () { row.remove(); });
+    wrap.appendChild(row);
+  }
+  window.addDownloadRow = addDownloadRow;
+
+  document.getElementById('add-download-row')?.addEventListener('click', function () {
+    addDownloadRow({ label: '', url: '', type: 'addon' });
+  });
+  if (Array.isArray(initialDownloads) && initialDownloads.length) {
+    initialDownloads.forEach(function (d) { addDownloadRow(d); });
+  } else {
+    addDownloadRow({ label: 'Main file', url: '', type: 'main' });
+  }
+
   const uploadUrl = @json(route('admin.media.store'));
   const libraryUrl = @json(route('admin.media.json'));
 
-  // Tabs
   document.querySelectorAll('[data-media-field]').forEach(function (block) {
     const tabs = block.querySelectorAll('.media-tab');
     tabs.forEach(function (tab) {
@@ -279,7 +330,7 @@
             });
             const data = await res.json();
             if (!data.ok) throw new Error(data.message || 'Upload failed');
-            applyUrl(block, data.asset.url);
+            applyUrl(block, data.asset.url, files[i].name);
           }
           if (status) status.textContent = 'Uploaded.';
         } catch (e) {
@@ -296,7 +347,7 @@
     }
   });
 
-  function applyUrl(block, url) {
+  function applyUrl(block, url, filename) {
     const field = block.dataset.mediaField;
     if (field === 'thumbnail') {
       const input = document.getElementById('thumbnail_url');
@@ -309,11 +360,14 @@
       if (!lines.includes(url)) lines.push(url);
       ta.value = lines.join('\n');
     } else if (field === 'mainfile') {
-      document.getElementById('main_file_url').value = url;
+      var t = document.getElementById('bundle-upload-type');
+      var type = t ? t.value : 'main';
+      var nameGuess = filename || url.split('/').pop() || 'Download';
+      try { nameGuess = decodeURIComponent(String(nameGuess).split('?')[0]); } catch (e) {}
+      window.addDownloadRow({ label: nameGuess, url: url, type: type });
     }
   }
 
-  // Library modal
   const modal = document.getElementById('media-modal');
   const grid = document.getElementById('media-modal-grid');
   let activeBlock = null;
@@ -339,7 +393,7 @@
             ? '<img src="' + a.url + '" class="h-20 w-full rounded object-cover bg-slate-100" alt="">'
             : '<div class="flex h-20 items-center justify-center bg-slate-100 text-[10px] px-1">' + (a.filename || 'file') + '</div>';
           btn.addEventListener('click', function () {
-            applyUrl(activeBlock, a.url);
+            applyUrl(activeBlock, a.url, a.filename);
             if (!multi) closeLibrary();
           });
           grid.appendChild(btn);
@@ -353,7 +407,6 @@
   document.getElementById('media-modal-close').addEventListener('click', closeLibrary);
   document.getElementById('media-modal-backdrop').addEventListener('click', closeLibrary);
 
-  // Category / attributes (existing)
   const childrenMap = @json($childrenMap);
   const initialCategoryId = @json(old('category_id', $item->category_id));
   const initialParentId = @json(old('parent_hint', $selectedParentId));
@@ -397,8 +450,8 @@
       values.forEach(function (val) {
         const lab = document.createElement('label');
         lab.className = 'inline-flex items-center gap-1.5 text-sm';
-        lab.innerHTML = '<input type="checkbox" name="attr[' + label.replace(/"/g,'&quot;') + '][]" value="' +
-          String(val).replace(/"/g,'&quot;') + '"' + (isChecked(label, val) ? ' checked' : '') + '> ' + val;
+        lab.innerHTML = '<input type="checkbox" name="attr[' + label.replace(/"/g,'"') + '][]" value="' +
+          String(val).replace(/"/g,'"') + '"' + (isChecked(label, val) ? ' checked' : '') + '> ' + val;
         row.appendChild(lab);
       });
       box.appendChild(row);
