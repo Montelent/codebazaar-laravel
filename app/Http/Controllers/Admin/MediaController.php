@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MediaAsset;
+use App\Services\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class MediaController extends Controller
 {
@@ -17,67 +17,59 @@ class MediaController extends Controller
             ? MediaAsset::orderByDesc('id')->paginate(40)
             : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 40);
 
-        return view('admin.media.index', compact('assets'));
+        $config = MediaStorageService::config();
+        $disks = MediaStorageService::disks();
+
+        return view('admin.media.index', compact('assets', 'config', 'disks'));
     }
 
     public function store(Request $request)
     {
         if (! Schema::hasTable('media_assets')) {
-            return back()->with('error', 'Run DB migrations first.');
+            return back()->with('error', 'Run DB migrations first (System tools).');
         }
 
-        // External URL option
+        $service = new MediaStorageService;
+
+        // External / Drive URL
         if ($request->filled('external_url')) {
-            $url = $request->validate(['external_url' => 'required|url|max:1000', 'alt' => 'nullable|string|max:200']);
-            $asset = MediaAsset::create([
-                'user_id' => $request->user()->id,
-                'url' => $url['external_url'],
-                'filename' => basename(parse_url($url['external_url'], PHP_URL_PATH) ?: 'external'),
-                'mime_type' => null,
-                'size' => null,
-                'alt' => $url['alt'] ?? null,
-                'disk' => 'external',
-                'path' => null,
+            $data = $request->validate([
+                'external_url' => 'required|string|max:2000',
+                'alt' => 'nullable|string|max:200',
+                'disk' => 'nullable|in:external,drive',
             ]);
+            $disk = $data['disk'] ?? 'external';
+            $asset = $service->storeExternalUrl($data['external_url'], $disk, $request->user()->id, $data['alt'] ?? null);
 
-            return back()->with('success', 'External media added. URL: '.$asset->url);
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => true, 'asset' => $asset]);
+            }
+
+            return back()->with('success', 'Media URL added: '.$asset->url);
         }
 
-        $request->validate([
-            'file' => 'required|file|max:20480|mimes:jpg,jpeg,png,gif,webp,svg,pdf,zip',
+        $data = $request->validate([
+            'file' => 'required|file|max:51200',
             'alt' => 'nullable|string|max:200',
+            'disk' => 'nullable|in:local,s3,backblaze,idrive',
         ]);
 
-        $file = $request->file('file');
-        $dir = 'media/'.date('Y/m');
-        $name = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)).'-'.Str::random(6).'.'.$file->getClientOriginalExtension();
+        try {
+            $disk = $data['disk'] ?: (MediaStorageService::config()['default_disk'] ?? 'local');
+            $asset = $service->storeUpload($request->file('file'), $disk, $request->user()->id, $data['alt'] ?? null);
+        } catch (\Throwable $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
 
-        // Ensure public disk root exists
-        $publicRoot = storage_path('app/public');
-        if (! is_dir($publicRoot)) {
-            @mkdir($publicRoot, 0755, true);
-        }
-        if (! is_dir($publicRoot.'/media')) {
-            @mkdir($publicRoot.'/media', 0755, true);
+            return back()->with('error', $e->getMessage());
         }
 
-        $path = $file->storeAs($dir, $name, 'public');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['ok' => true, 'asset' => $asset]);
+        }
 
-        // Public URL: /storage/... requires storage:link or we serve via route
-        $url = url('/media/file/'.$path);
-
-        $asset = MediaAsset::create([
-            'user_id' => $request->user()->id,
-            'url' => $url,
-            'filename' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
-            'size' => $file->getSize(),
-            'alt' => $request->input('alt'),
-            'disk' => 'public',
-            'path' => $path,
-        ]);
-
-        return back()->with('success', 'Uploaded. Copy URL: '.$asset->url);
+        return back()->with('success', 'Uploaded ('.$asset->disk.'). URL: '.$asset->url);
     }
 
     public function destroy(MediaAsset $medium)
@@ -90,7 +82,28 @@ class MediaController extends Controller
         return back()->with('success', 'Media deleted.');
     }
 
-    /** Serve stored files without needing php artisan storage:link */
+    /** JSON list for product form media picker */
+    public function json(Request $request)
+    {
+        if (! Schema::hasTable('media_assets')) {
+            return response()->json(['data' => []]);
+        }
+
+        $q = MediaAsset::orderByDesc('id');
+        if ($request->filled('images')) {
+            $q->where(function ($w) {
+                $w->where('mime_type', 'like', 'image/%')
+                    ->orWhere('url', 'like', '%.jpg%')
+                    ->orWhere('url', 'like', '%.jpeg%')
+                    ->orWhere('url', 'like', '%.png%')
+                    ->orWhere('url', 'like', '%.webp%')
+                    ->orWhere('url', 'like', '%.gif%');
+            });
+        }
+
+        return response()->json(['data' => $q->limit(60)->get()]);
+    }
+
     public function serve(string $path)
     {
         $path = str_replace('..', '', $path);
