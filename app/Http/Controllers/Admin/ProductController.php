@@ -86,6 +86,8 @@ class ProductController extends Controller
 
         $tagPresets = SiteSetting::getValue('tags', ['React', 'Laravel', 'WordPress', 'Vue', 'PHP', 'HTML', 'SaaS', 'Dashboard']);
 
+        $downloadFiles = $item->exists ? $item->downloadFilesList() : [];
+
         return [
             'item' => $item,
             'parents' => $parents,
@@ -94,6 +96,7 @@ class ProductController extends Controller
             'selectedParentId' => $selectedParentId,
             'attrOptions' => $attrOptions,
             'tagPresets' => $tagPresets,
+            'downloadFiles' => $downloadFiles,
         ];
     }
 
@@ -164,19 +167,57 @@ class ProductController extends Controller
         return $try;
     }
 
-    /** Ensure TinyMCE HTML is stored as real tags, not escaped entities. */
     protected function normalizeHtml(?string $html): ?string
     {
         if ($html === null || $html === '') {
             return $html;
         }
 
-        // If content was double-escaped (&lt;p&gt;...) decode once
         if (str_contains($html, '&lt;') && ! str_contains($html, '<p') && ! str_contains($html, '<div') && ! str_contains($html, '<h')) {
             $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
 
         return $html;
+    }
+
+    /** @return list<array{label:string,url:string,type:string}> */
+    protected function parseDownloadFiles(Request $request): array
+    {
+        $files = [];
+
+        // Preferred: structured rows from the form
+        $rows = $request->input('download_files', []);
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $url = trim((string) ($row['url'] ?? ''));
+                if ($url === '') {
+                    continue;
+                }
+                $type = $row['type'] ?? 'main';
+                if (! in_array($type, ['main', 'addon', 'extra'], true)) {
+                    $type = 'main';
+                }
+                $files[] = [
+                    'label' => trim((string) ($row['label'] ?? '')) ?: ($type === 'addon' ? 'Addon' : 'Download'),
+                    'url' => $url,
+                    'type' => $type,
+                ];
+            }
+        }
+
+        // Fallback: legacy single main_file_url field
+        if (count($files) === 0 && $request->filled('main_file_url')) {
+            $files[] = [
+                'label' => 'Main file',
+                'url' => trim((string) $request->input('main_file_url')),
+                'type' => 'main',
+            ];
+        }
+
+        return $files;
     }
 
     protected function validated(Request $request): array
@@ -192,7 +233,7 @@ class ProductController extends Controller
             'is_free' => 'nullable|boolean',
             'thumbnail_url' => 'nullable|string|max:1000',
             'demo_url' => 'nullable|string|max:1000',
-            'main_file_url' => 'nullable|string|max:1000',
+            'main_file_url' => 'nullable|string|max:2000',
             'category_id' => 'nullable|exists:categories,id',
             'is_featured' => 'nullable|boolean',
             'status' => 'nullable|in:pending,approved,rejected',
@@ -200,6 +241,10 @@ class ProductController extends Controller
             'gallery_text' => 'nullable|string',
             'tags_text' => 'nullable|string',
             'attributes_json' => 'nullable|string',
+            'download_files' => 'nullable|array',
+            'download_files.*.label' => 'nullable|string|max:200',
+            'download_files.*.url' => 'nullable|string|max:2000',
+            'download_files.*.type' => 'nullable|in:main,addon,extra',
         ]);
 
         $data['is_free'] = $request->boolean('is_free');
@@ -221,6 +266,18 @@ class ProductController extends Controller
             $attrs[$key] = is_array($vals) ? array_values(array_filter($vals)) : [$vals];
         }
         $data['attributes'] = $attrs;
+
+        $downloadFiles = $this->parseDownloadFiles($request);
+        $data['download_files'] = $downloadFiles;
+        // Keep main_file_url in sync (first main file, or first file)
+        $primary = null;
+        foreach ($downloadFiles as $f) {
+            if (($f['type'] ?? '') === 'main') {
+                $primary = $f['url'];
+                break;
+            }
+        }
+        $data['main_file_url'] = $primary ?: ($downloadFiles[0]['url'] ?? null);
 
         unset($data['features_text'], $data['gallery_text'], $data['tags_text'], $data['attributes_json']);
 
