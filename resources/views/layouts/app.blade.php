@@ -5,12 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', config('app.name', 'CodeBazaar'))</title>
     <meta name="description" content="@yield('meta_description', 'Digital marketplace for code, scripts, themes and plugins.')">
+    @php
+        $theme = \App\Models\SiteSetting::getValue('colors', [
+            'primary' => '#82b440',
+            'primary_hover' => '#6f9a36',
+            'secondary' => '#1b2838',
+            'header_bg' => '#ffffff',
+            'footer_bg' => '#1a1a1a',
+            'footer_text' => '#b0b0b0',
+            'announcement_bg' => '#2c3e50',
+        ]);
+        $cPrimary = $theme['primary'] ?? '#82b440';
+        $cHover = $theme['primary_hover'] ?? '#6f9a36';
+        $cSecondary = $theme['secondary'] ?? '#1b2838';
+        $cHeaderBg = $theme['header_bg'] ?? '#ffffff';
+        $cFooterBg = $theme['footer_bg'] ?? '#1a1a1a';
+        $cFooterText = $theme['footer_text'] ?? '#b0b0b0';
+        $cAnnBg = $theme['announcement_bg'] ?? '#2c3e50';
+    @endphp
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            colors: { envato: { green: '#82b440', dark: '#262626', muted: '#7a7a7a' } },
+            colors: {
+              brand: {
+                DEFAULT: '{{ $cPrimary }}',
+                hover: '{{ $cHover }}',
+                dark: '{{ $cSecondary }}',
+              },
+              envato: { green: '{{ $cPrimary }}', dark: '#262626', muted: '#7a7a7a' }
+            },
             fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] }
           }
         }
@@ -19,20 +44,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      :root { --cc-green: #82b440; --cc-green-hover: #6f9a36; --cc-border: #e5e7eb; --cc-bg: #f5f7fa; --cc-text: #333; --cc-header-h: 56px; }
+      :root {
+        --cc-green: {{ $cPrimary }};
+        --cc-green-hover: {{ $cHover }};
+        --cc-secondary: {{ $cSecondary }};
+        --cc-header-bg: {{ $cHeaderBg }};
+        --cc-footer-bg: {{ $cFooterBg }};
+        --cc-footer-text: {{ $cFooterText }};
+        --cc-announcement-bg: {{ $cAnnBg }};
+        --cc-border: #e5e7eb;
+        --cc-bg: #f5f7fa;
+        --cc-text: #333;
+        --cc-header-h: 56px;
+      }
       * { box-sizing: border-box; }
       body { font-family: Inter, system-ui, sans-serif; background: var(--cc-bg); color: var(--cc-text); margin: 0; }
       a { color: inherit; }
       .cc-container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 16px; }
       @media (min-width: 640px) { .cc-container { padding: 0 20px; } }
       @media (min-width: 1024px) { .cc-container { padding: 0 24px; } }
-      .cc-topbar { background: #fff; border-bottom: 1px solid #e8e8e8; }
+      .cc-topbar { background: var(--cc-header-bg); border-bottom: 1px solid #e8e8e8; }
       .cc-topbar-inner { display: flex; align-items: center; gap: 16px; min-height: var(--cc-header-h); padding-top: 10px; padding-bottom: 10px; }
       .cc-logo { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 800; font-size: 1.15rem; color: #1a1a1a; white-space: nowrap; flex-shrink: 0; }
       .cc-logo-mark { width: 28px; height: 28px; border-radius: 4px; background: var(--cc-green); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
       .cc-header-search { flex: 1; max-width: 520px; position: relative; }
       .cc-header-search input { width: 100%; height: 40px; border: 1px solid #d0d0d0; border-radius: 4px; padding: 0 40px 0 14px; font-size: 14px; background: #fff; }
-      .cc-header-search input:focus { outline: none; border-color: var(--cc-green); box-shadow: 0 0 0 2px rgba(130,180,64,.2); }
+      .cc-header-search input:focus { outline: none; border-color: var(--cc-green); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc-green) 25%, transparent); }
       .cc-header-search button { position: absolute; right: 0; top: 0; bottom: 0; width: 42px; border: 0; background: transparent; color: #666; cursor: pointer; }
       .cc-header-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
       .cc-header-actions a, .cc-header-actions button { font-size: 13px; font-weight: 500; color: #444; text-decoration: none; background: none; border: 0; cursor: pointer; padding: 0; }
@@ -40,7 +77,7 @@
       .cc-btn-cart { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #ddd !important; border-radius: 4px; padding: 7px 12px !important; font-weight: 600 !important; }
       .cc-btn-green { background: var(--cc-green) !important; color: #fff !important; border-radius: 4px; padding: 8px 14px !important; font-weight: 600 !important; font-size: 13px !important; text-decoration: none; }
       .cc-btn-green:hover { background: var(--cc-green-hover) !important; color: #fff !important; }
-      .cc-subnav { background: #fff; border-bottom: 1px solid #e8e8e8; }
+      .cc-subnav { background: var(--cc-header-bg); border-bottom: 1px solid #e8e8e8; }
       .cc-subnav-inner { display: flex; align-items: center; gap: 4px; overflow-x: auto; min-height: 42px; scrollbar-width: none; }
       .cc-subnav-inner::-webkit-scrollbar { display: none; }
       .cc-subnav a { flex-shrink: 0; padding: 10px 12px; font-size: 13px; font-weight: 500; color: #555; text-decoration: none; white-space: nowrap; }
@@ -57,9 +94,15 @@
       .cc-drawer-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
       .cc-drawer-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 88vw); background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.12); padding: 16px; overflow-y: auto; }
       .cc-drawer-panel a { display: block; padding: 12px 8px; color: #1e293b; text-decoration: none; font-weight: 500; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-      .cc-footer { background: #1a1a1a; color: #b0b0b0; margin-top: 56px; }
+      .cc-footer { background: var(--cc-footer-bg); color: var(--cc-footer-text); margin-top: 56px; }
       .cc-footer a { color: inherit; text-decoration: none; }
       .cc-footer a:hover { color: #fff; }
+      .cc-hero { background: var(--cc-secondary); }
+      .text-brand, a.text-brand { color: var(--cc-green) !important; }
+      .bg-brand { background-color: var(--cc-green) !important; }
+      .bg-brand:hover, .hover\:bg-brand:hover { background-color: var(--cc-green-hover) !important; }
+      .border-brand { border-color: var(--cc-green) !important; }
+      .ring-brand:focus { --tw-ring-color: var(--cc-green); }
       main.cc-main { padding: 24px 0 48px; min-height: 50vh; }
       .cc-grid { display: grid; gap: 16px; grid-template-columns: repeat(1, minmax(0, 1fr)); }
       @media (min-width: 480px) { .cc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -83,6 +126,13 @@
       .item-body code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, monospace; font-size: 13px; }
       .item-body pre code { background: transparent; padding: 0; color: inherit; }
       .cc-ad-slot { text-align: center; overflow: hidden; }
+      /* Map common hardcoded Envato green utility classes to theme primary */
+      .text-\[\#82b440\], .hover\:text-\[\#82b440\]:hover { color: var(--cc-green) !important; }
+      .bg-\[\#82b440\], .hover\:bg-\[\#82b440\]:hover { background-color: var(--cc-green) !important; }
+      .hover\:bg-\[\#6f9a36\]:hover { background-color: var(--cc-green-hover) !important; }
+      .border-\[\#82b440\], .hover\:border-\[\#82b440\]:hover { border-color: var(--cc-green) !important; }
+      .bg-\[\#1b2838\] { background-color: var(--cc-secondary) !important; }
+      .focus\:ring-\[\#82b440\]:focus { --tw-ring-color: var(--cc-green) !important; }
     </style>
     @stack('head')
     @php $siteCodes = \App\Models\SiteSetting::getValue('site_codes', ['head' => '', 'body_start' => '', 'body_end' => '']); @endphp
@@ -105,7 +155,7 @@
     }
 @endphp
 @if(!empty($ann['enabled']) && !empty($ann['text']))
-<div style="background:#2c3e50;color:#fff;font-size:13px;text-align:center;padding:8px 12px">{{ $ann['text'] }}</div>
+<div style="background:var(--cc-announcement-bg);color:#fff;font-size:13px;text-align:center;padding:8px 12px">{{ $ann['text'] }}</div>
 @endif
 
 <header class="cc-topbar sticky top-0 z-40">
@@ -182,7 +232,7 @@
     <div class="cc-container grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div class="sm:col-span-2">
             <p class="text-lg font-semibold text-white">CodeBazaar</p>
-            <p class="mt-2 max-w-md text-sm text-[#9a9a9a]">{{ $footer['about'] ?? '' }}</p>
+            <p class="mt-2 max-w-md text-sm" style="color:var(--cc-footer-text)">{{ $footer['about'] ?? '' }}</p>
         </div>
         <div>
             <p class="text-sm font-semibold text-white">Explore</p>
@@ -202,7 +252,7 @@
         </div>
     </div>
     {!! \App\Support\AdSlots::render('footer_bottom') !!}
-    <div class="border-t border-[#2a2a2a] py-4 text-center text-xs text-[#777]">&copy; {{ date('Y') }} CodeBazaar</div>
+    <div class="border-t py-4 text-center text-xs" style="border-color:color-mix(in srgb, var(--cc-footer-bg) 70%, #fff);color:var(--cc-footer-text)">&copy; {{ date('Y') }} CodeBazaar</div>
 </footer>
 <script>
 (function () {
