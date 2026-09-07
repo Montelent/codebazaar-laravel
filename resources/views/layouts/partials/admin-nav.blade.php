@@ -20,6 +20,7 @@
 <a href="{{ route('admin.settings.storage') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">File storage</a>
 <a href="{{ route('admin.settings.navigation') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Navigation</a>
 <a href="{{ route('admin.settings.header_footer') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Header / footer</a>
+<a href="{{ route('admin.settings.ads') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Ad placements</a>
 <a href="{{ route('admin.settings.schema') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Schema SEO</a>
 <p class="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Maintenance</p>
 <a href="{{ route('admin.tools.index') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">System tools</a>

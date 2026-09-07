@@ -14,6 +14,7 @@ use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\Admin\AdSettingsController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\BlogAdminController;
 use App\Http\Controllers\Admin\CategoryController;
@@ -151,6 +152,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/settings/navigation', [NavigationSettingsController::class, 'update'])->name('settings.navigation.update');
     Route::get('/settings/header-footer', [HeaderFooterSettingsController::class, 'edit'])->name('settings.header_footer');
     Route::put('/settings/header-footer', [HeaderFooterSettingsController::class, 'update'])->name('settings.header_footer.update');
+    Route::get('/settings/ads', [AdSettingsController::class, 'edit'])->name('settings.ads');
+    Route::put('/settings/ads', [AdSettingsController::class, 'update'])->name('settings.ads.update');
     Route::get('/settings/schema', [SchemaSettingsController::class, 'edit'])->name('settings.schema');
     Route::put('/settings/schema', [SchemaSettingsController::class, 'update'])->name('settings.schema.update');
 });
