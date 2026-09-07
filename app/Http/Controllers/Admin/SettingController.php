@@ -25,8 +25,13 @@ class SettingController extends Controller
                 'about' => 'The marketplace for high-quality code, scripts, plugins, and digital assets.',
             ]),
             'colors' => SiteSetting::getValue('colors', [
-                'primary' => '#059669',
-                'secondary' => '#0f172a',
+                'primary' => '#82b440',
+                'primary_hover' => '#6f9a36',
+                'secondary' => '#1b2838',
+                'header_bg' => '#ffffff',
+                'footer_bg' => '#1a1a1a',
+                'footer_text' => '#b0b0b0',
+                'announcement_bg' => '#2c3e50',
             ]),
             'seo' => SiteSetting::getValue('seo', [
                 'title' => 'CodeBazaar',
@@ -49,7 +54,6 @@ class SettingController extends Controller
             'text' => $request->input('announcement_text'),
         ], 'homepage');
 
-        // Keep about text in sync if present; full footer columns live under Header/Footer settings
         $footer = SiteSetting::getValue('footer', []);
         if (! is_array($footer)) {
             $footer = [];
@@ -57,9 +61,17 @@ class SettingController extends Controller
         $footer['about'] = $request->input('footer_about');
         SiteSetting::setValue('footer', $footer, 'footer');
 
+        $primary = $this->sanitizeHex($request->input('color_primary'), '#82b440');
+        $primaryHover = $this->sanitizeHex($request->input('color_primary_hover'), $this->darkenHex($primary, 14));
+
         SiteSetting::setValue('colors', [
-            'primary' => $request->input('color_primary', '#059669'),
-            'secondary' => $request->input('color_secondary', '#0f172a'),
+            'primary' => $primary,
+            'primary_hover' => $primaryHover,
+            'secondary' => $this->sanitizeHex($request->input('color_secondary'), '#1b2838'),
+            'header_bg' => $this->sanitizeHex($request->input('color_header_bg'), '#ffffff'),
+            'footer_bg' => $this->sanitizeHex($request->input('color_footer_bg'), '#1a1a1a'),
+            'footer_text' => $this->sanitizeHex($request->input('color_footer_text'), '#b0b0b0'),
+            'announcement_bg' => $this->sanitizeHex($request->input('color_announcement_bg'), '#2c3e50'),
         ], 'design');
 
         SiteSetting::setValue('seo', [
@@ -67,6 +79,36 @@ class SettingController extends Controller
             'description' => $request->input('seo_description'),
         ], 'seo');
 
-        return redirect()->route('admin.settings.general')->with('success', 'General settings saved.');
+        return redirect()->route('admin.settings.general')->with('success', 'General settings saved. Colors apply on the storefront immediately.');
+    }
+
+    protected function sanitizeHex(?string $value, string $fallback): string
+    {
+        $value = trim((string) $value);
+        if (preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $value)) {
+            return strtolower($value);
+        }
+
+        return $fallback;
+    }
+
+    protected function darkenHex(string $hex, int $percent = 12): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        if (strlen($hex) !== 6) {
+            return '#6f9a36';
+        }
+        $factor = max(0, min(100, $percent)) / 100;
+        $out = '';
+        for ($i = 0; $i < 6; $i += 2) {
+            $c = hexdec(substr($hex, $i, 2));
+            $c = (int) max(0, round($c * (1 - $factor)));
+            $out .= str_pad(dechex($c), 2, '0', STR_PAD_LEFT);
+        }
+
+        return '#'.$out;
     }
 }
