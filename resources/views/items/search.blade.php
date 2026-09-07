@@ -6,6 +6,8 @@
   $hasTag = !empty($tag);
 @endphp
 
+{!! \App\Support\AdSlots::render('search_top') !!}
+
 <nav class="mb-3 text-sm text-slate-500">
   <a href="{{ route('home') }}" class="hover:text-[var(--cc-green)]">Home</a>
   <span class="mx-1.5 text-slate-300">/</span>

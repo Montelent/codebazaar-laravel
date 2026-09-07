@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Blog')
 @section('content')
+{!! \App\Support\AdSlots::render('blog_index_top') !!}
 <h1 class="text-2xl font-bold">Blog</h1>
 <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 @forelse($posts as $post)
@@ -13,4 +14,5 @@
 @endforelse
 </div>
 {{ $posts->links() }}
+{!! \App\Support\AdSlots::render('blog_index_bottom') !!}
 @endsection

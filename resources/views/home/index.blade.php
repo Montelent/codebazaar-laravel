@@ -2,7 +2,6 @@
 @section('title', 'CodeBazaar — Code Scripts & Plugins Marketplace')
 @section('content')
 
-{{-- CodeCanyon-style dark search hero --}}
 <section class="relative overflow-hidden rounded border border-slate-200 bg-[#1b2838] text-white shadow-sm">
     <div class="relative z-[1] px-5 py-11 sm:px-10 sm:py-14 lg:px-14">
         <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#82b440]">Code marketplace</p>
@@ -14,7 +13,7 @@
         </p>
         <form action="{{ route('search') }}" method="get" class="mt-6 flex max-w-xl flex-col gap-2 sm:flex-row">
             <input type="search" name="q" placeholder="e.g. admin dashboard, Laravel, WooCommerce…"
-                   class="h-11 flex-1 rounded border-0 px-4 text-[15px] text-slate-900 shadow-sm outline-none ring-0 focus:ring-2 focus:ring-[#82b440]/"
+                   class="h-11 flex-1 rounded border-0 px-4 text-[15px] text-slate-900 shadow-sm outline-none ring-0 focus:ring-2 focus:ring-[#82b440]"
                    value="{{ request('q') }}">
             <button type="submit" class="h-11 shrink-0 rounded bg-[#82b440] px-6 text-sm font-bold text-white hover:bg-[#6f9a36]">
                 {{ $hero['cta'] ?? 'Search' }}
@@ -23,7 +22,8 @@
     </div>
 </section>
 
-{{-- Category row --}}
+{!! \App\Support\AdSlots::render('homepage_after_hero') !!}
+
 @if($categories->count())
 <section class="mt-7">
     <div class="mb-3 flex items-center justify-between">
@@ -42,7 +42,6 @@
 </section>
 @endif
 
-{{-- Featured --}}
 @if($featured->count())
 <section class="mt-10">
     <div class="mb-4 flex items-end justify-between gap-3">
@@ -57,7 +56,6 @@
 </section>
 @endif
 
-{{-- Popular --}}
 @if($popular->count())
 <section class="mt-10">
     <div class="mb-4 flex items-end justify-between gap-3">
@@ -72,7 +70,6 @@
 </section>
 @endif
 
-{{-- Newest --}}
 <section class="mt-10">
     <div class="mb-4 flex items-end justify-between gap-3">
         <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">Newest items</h2>
@@ -87,7 +84,8 @@
     </div>
 </section>
 
-{{-- Blog grid (always shown) --}}
+{!! \App\Support\AdSlots::render('homepage_before_blog') !!}
+
 <section class="mt-12 border-t border-slate-200 pt-10">
     <div class="mb-4 flex items-end justify-between gap-3">
         <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">From the blog</h2>
@@ -106,7 +104,7 @@
                             <div class="flex aspect-[16/9] items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-xs font-medium text-slate-400">Blog</div>
                         @endif
                         <div class="p-4">
-                            <h3 class="line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-[#82b440]">{{ $post->title }}</h3>
+                            <h3 class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $post->title }}</h3>
                             @if($post->excerpt)
                                 <p class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{{ $post->excerpt }}</p>
                             @endif

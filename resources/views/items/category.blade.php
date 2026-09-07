@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', $category->name . ' · CodeBazaar')
 @section('content')
+{!! \App\Support\AdSlots::render('category_top') !!}
 <h1 class="text-2xl font-bold">{{ $category->name }}</h1>
 <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     @foreach($items as $item)
