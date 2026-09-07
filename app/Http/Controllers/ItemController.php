@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\Review;
+use App\Support\Seo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -53,7 +54,9 @@ class ItemController extends Controller
             }
         }
 
-        return view('items.show', compact('item', 'related', 'reviews', 'myReview'));
+        $seo = Seo::make($item->seoPayload());
+
+        return view('items.show', compact('item', 'related', 'reviews', 'myReview', 'seo'));
     }
 
     public function search(Request $request)
@@ -96,8 +99,18 @@ class ItemController extends Controller
             ->orderBy('name')
             ->get();
 
+        $title = $q !== '' ? 'Search: '.$q : 'Browse items';
+        $seo = Seo::make([
+            'title' => $title,
+            'description' => $q !== ''
+                ? 'Search results for '.$q.' on '.Seo::siteName()
+                : 'Browse digital items on '.Seo::siteName(),
+            'canonical' => route('search'),
+            'robots' => $q !== '' ? 'noindex, follow' : 'index, follow',
+        ]);
+
         return view('items.search', compact(
-            'items', 'q', 'attrKey', 'attrVal', 'tag', 'sort', 'priceMin', 'priceMax', 'view', 'sidebarCategories'
+            'items', 'q', 'attrKey', 'attrVal', 'tag', 'sort', 'priceMin', 'priceMax', 'view', 'sidebarCategories', 'seo'
         ));
     }
 
@@ -144,7 +157,6 @@ class ItemController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Sibling / root categories for sidebar when no children
         $sidebarCategories = $children->isNotEmpty()
             ? $children
             : Category::query()
@@ -153,8 +165,19 @@ class ItemController extends Controller
                 ->orderBy('name')
                 ->get();
 
+        $seoTitle = $category->seo_title ?? $category->name;
+        $seoDesc = $category->seo_description
+            ?? (($category->description ?: $category->name.' items on '.Seo::siteName()));
+
+        $seo = Seo::make([
+            'title' => $seoTitle,
+            'description' => $seoDesc,
+            'canonical' => $category->canonical_url ?: route('category', $category->slug),
+            'robots' => $category->robots ?? null,
+        ]);
+
         return view('items.category', compact(
-            'category', 'items', 'sidebarCategories', 'children', 'sort', 'priceMin', 'priceMax', 'view', 'sub'
+            'category', 'items', 'sidebarCategories', 'children', 'sort', 'priceMin', 'priceMax', 'view', 'sub', 'seo'
         ));
     }
 
