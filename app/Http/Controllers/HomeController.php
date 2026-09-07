@@ -6,22 +6,42 @@ use App\Models\BlogPost;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\SiteSetting;
+use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
 {
     public function index()
     {
-        $featured = Item::approved()->where('is_featured', true)->latest()->take(8)->get();
-        $latest = Item::approved()->latest()->take(12)->get();
-        $categories = Category::query()->whereNull('parent_id')->withCount('items')->orderBy('name')->get();
-        $blog = BlogPost::query()->where('status', 'published')->latest('published_at')->take(6)->get();
+        $featured = Item::approved()->where('is_featured', true)->with('author')->latest()->take(8)->get();
+        $latest = Item::approved()->with('author')->latest()->take(12)->get();
+        $popular = Item::approved()->with('author')->orderByDesc('sales_count')->take(8)->get();
 
-        // Prefer the key written by the seeder; fall back to the shorter key used in admin settings
-        $hero = SiteSetting::get('homepage.hero', SiteSetting::get('hero', [
-            'title' => 'The marketplace for high-quality code',
-            'subtitle' => 'Scripts, plugins, themes, and digital assets.',
+        $categories = Category::query()
+            ->whereNull('parent_id')
+            ->withCount(['items' => fn ($q) => $q->where('status', 'approved')])
+            ->orderBy('name')
+            ->get();
+
+        $blog = collect();
+        try {
+            if (Schema::hasTable('blog_posts')) {
+                $blog = BlogPost::query()
+                    ->where('status', 'published')
+                    ->orderByDesc('published_at')
+                    ->orderByDesc('id')
+                    ->take(6)
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            $blog = collect();
+        }
+
+        $hero = SiteSetting::getValue('homepage.hero', SiteSetting::getValue('hero', [
+            'title' => 'Discover thousands of code scripts & plugins',
+            'subtitle' => 'PHP scripts, JavaScript, WordPress, mobile apps and more from independent authors.',
+            'cta' => 'Search',
         ]));
 
-        return view('home.index', compact('featured', 'latest', 'categories', 'blog', 'hero'));
+        return view('home.index', compact('featured', 'latest', 'popular', 'categories', 'blog', 'hero'));
     }
 }

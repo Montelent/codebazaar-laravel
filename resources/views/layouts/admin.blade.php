@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Admin') · CodeBazaar</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    {{-- Free open-source TinyMCE (no API key required) --}}
     <script src="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js" referrerpolicy="origin"></script>
     @stack('head')
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
 <div class="flex min-h-screen">
-    {{-- Desktop sidebar --}}
     <aside class="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-900 text-slate-200 lg:block">
         <div class="border-b border-slate-800 px-4 py-4 text-lg font-bold text-white">CodeBazaar Admin</div>
         <nav class="space-y-1 p-3 text-sm">
@@ -44,7 +42,6 @@
     </div>
 </div>
 
-{{-- Mobile slide-over --}}
 <div id="admin-drawer" class="fixed inset-0 z-50 hidden lg:hidden" aria-hidden="true">
     <div id="admin-drawer-backdrop" class="absolute inset-0 bg-black/40"></div>
     <aside class="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-slate-900 text-slate-200 shadow-xl">
@@ -83,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof tinymce !== 'undefined') {
     tinymce.init({
       selector: 'textarea.tinymce',
-      height: 380,
+      height: 420,
       menubar: 'file edit view insert format tools table help',
       plugins: [
         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
@@ -95,8 +92,23 @@ document.addEventListener('DOMContentLoaded', function () {
       branding: false,
       promotion: false,
       license_key: 'gpl',
-      content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 14px; }'
+      // Keep full HTML (do not strip styles the author applied)
+      valid_elements: '*[*]',
+      extended_valid_elements: '*[*]',
+      verify_html: false,
+      entity_encoding: 'raw',
+      content_style: 'body{font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#222} p{margin:0 0 1em} h1,h2,h3{font-weight:700;margin:1em 0 .5em} ul,ol{padding-left:1.4em;margin:0 0 1em} img{max-width:100%;height:auto}',
+      setup: function (editor) {
+        // Always flush editor HTML into the textarea before any form submit
+        editor.on('change keyup', function () { editor.save(); });
+      }
     });
+
+    document.addEventListener('submit', function () {
+      if (window.tinymce) {
+        window.tinymce.triggerSave();
+      }
+    }, true);
   }
 });
 </script>

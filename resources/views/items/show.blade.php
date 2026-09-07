@@ -14,38 +14,41 @@
     $item->thumbnail_url ? [$item->thumbnail_url] : [],
     $gallery
   )));
-  // If description was stored with escaped HTML entities, decode once for display
   $descriptionHtml = (string) ($item->description ?? '');
-  if ($descriptionHtml !== '' && str_contains($descriptionHtml, '&lt;') && ! str_contains($descriptionHtml, '<p') && ! str_contains($descriptionHtml, '<div')) {
-      $descriptionHtml = html_entity_decode($descriptionHtml, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+  // Fix plain-looking descriptions that were saved as escaped HTML entities
+  if ($descriptionHtml !== '' && str_contains($descriptionHtml, '&lt;')) {
+      $once = html_entity_decode($descriptionHtml, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+      if (str_contains($once, '<') && ! str_contains($descriptionHtml, '<p') && ! str_contains($descriptionHtml, '<div')) {
+          $descriptionHtml = $once;
+      }
   }
 @endphp
 
-<nav class="mb-4 text-sm text-slate-500">
-  <a href="{{ route('home') }}" class="hover:text-[var(--cc-green)]">Home</a>
+<nav class="mb-4 text-[13px] text-slate-500">
+  <a href="{{ route('home') }}" class="hover:text-[#82b440]">Home</a>
   <span class="mx-1.5 text-slate-300">/</span>
   @if($item->category)
-    <a href="{{ route('category', $item->category->slug) }}" class="hover:text-[var(--cc-green)]">{{ $item->category->name }}</a>
+    <a href="{{ route('category', $item->category->slug) }}" class="hover:text-[#82b440]">{{ $item->category->name }}</a>
     <span class="mx-1.5 text-slate-300">/</span>
   @endif
   <span class="text-slate-700">{{ \Illuminate\Support\Str::limit($item->title, 48) }}</span>
 </nav>
 
 <div class="grid gap-8 lg:grid-cols-12">
-  <div class="lg:col-span-8 space-y-5">
+  <div class="space-y-5 lg:col-span-8">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.65rem]">{{ $item->title }}</h1>
-      <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+      <h1 class="text-[1.55rem] font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">{{ $item->title }}</h1>
+      <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
         @if($item->author)
           <span>by
-            <a class="font-medium text-slate-800 hover:text-[var(--cc-green)]" href="{{ route('author.show', $item->author->username ?: $item->author->id) }}">
+            <a class="font-medium text-slate-800 hover:text-[#82b440]" href="{{ route('author.show', $item->author->username ?: $item->author->id) }}">
               {{ $item->author->name ?: $item->author->username }}
             </a>
           </span>
         @endif
         @if($item->rating_count)
           <span class="text-amber-500">★ {{ number_format($item->rating_avg, 1) }}</span>
-          <a href="#reviews" class="hover:text-[var(--cc-green)]">{{ $item->rating_count }} ratings</a>
+          <a href="#reviews" class="hover:text-[#82b440]">{{ $item->rating_count }} ratings</a>
         @endif
         @if($item->sales_count)
           <span>{{ number_format($item->sales_count) }} sales</span>
@@ -54,15 +57,15 @@
     </div>
 
     <div class="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
-      <div class="relative bg-slate-50">
+      <div class="relative bg-[#f7f8fa]">
         @if(count($previews))
-          <img id="cc-main-preview" src="{{ $previews[0] }}" alt="{{ $item->title }}" class="mx-auto max-h-[480px] w-full object-contain">
+          <img id="cc-main-preview" src="{{ $previews[0] }}" alt="{{ $item->title }}" class="mx-auto max-h-[460px] w-full object-contain">
         @else
           <div class="flex h-64 items-center justify-center text-slate-400">No preview image</div>
         @endif
         @if($item->demo_url)
           <a href="{{ $item->demo_url }}" target="_blank" rel="noopener"
-             class="absolute bottom-3 right-3 rounded bg-slate-900/85 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">
+             class="absolute bottom-3 right-3 rounded bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">
             Live Preview ↗
           </a>
         @endif
@@ -70,8 +73,9 @@
       @if(count($previews) > 1)
         <div class="flex gap-2 overflow-x-auto border-t border-slate-100 bg-white p-3">
           @foreach($previews as $i => $img)
-            <button type="button" class="cc-thumb shrink-0 overflow-hidden rounded border-2 {{ $i === 0 ? 'border-[var(--cc-green)]' : 'border-transparent' }}"
-                    data-src="{{ $img }}" onclick="document.getElementById('cc-main-preview').src=this.dataset.src; document.querySelectorAll('.cc-thumb').forEach(t=>t.classList.remove('border-[var(--cc-green)]')); this.classList.add('border-[var(--cc-green)]');">
+            <button type="button" class="cc-thumb shrink-0 overflow-hidden rounded border-2 {{ $i === 0 ? 'border-[#82b440]' : 'border-transparent' }}"
+                    data-src="{{ $img }}"
+                    onclick="document.getElementById('cc-main-preview').src=this.dataset.src;document.querySelectorAll('.cc-thumb').forEach(t=>t.classList.remove('border-[#82b440]'));this.classList.add('border-[#82b440]');">
               <img src="{{ $img }}" class="h-14 w-20 object-cover" alt="">
             </button>
           @endforeach
@@ -80,28 +84,30 @@
     </div>
 
     <div class="rounded border border-slate-200 bg-white shadow-sm" id="item-tabs">
-      <div class="flex flex-wrap gap-0 border-b border-slate-200 text-sm font-medium">
-        <button type="button" class="cc-tab border-b-2 border-[var(--cc-green)] px-4 py-3 text-slate-900" data-tab="details">Item details</button>
-        <button type="button" class="cc-tab border-b-2 border-transparent px-4 py-3 text-slate-500 hover:text-slate-800" data-tab="comments">Comments / Reviews ({{ $reviews->count() }})</button>
+      <div class="flex flex-wrap gap-0 border-b border-slate-200 text-[13px] font-semibold">
+        <button type="button" class="cc-tab border-b-2 border-[#82b440] px-4 py-3 text-slate-900" data-tab="details">Item details</button>
+        <button type="button" class="cc-tab border-b-2 border-transparent px-4 py-3 text-slate-500 hover:text-slate-800" data-tab="comments">Comments ({{ $reviews->count() }})</button>
         @if(count($attrs))
           <button type="button" class="cc-tab border-b-2 border-transparent px-4 py-3 text-slate-500 hover:text-slate-800" data-tab="attributes">Item attributes</button>
         @endif
       </div>
 
       <div class="cc-tab-panel p-5 sm:p-6" data-panel="details">
+        {{-- Rich HTML from TinyMCE — must use unescaped output + .item-body CSS --}}
         <div class="item-body">{!! $descriptionHtml !!}</div>
+
         @if(count($features))
           <h3 class="mt-8 text-base font-semibold text-slate-900">Features</h3>
           <ul class="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
             @foreach($features as $f)
-              <li class="flex gap-2"><span class="text-[var(--cc-green)]">✓</span> <span>{{ $f }}</span></li>
+              <li class="flex gap-2"><span class="text-[#82b440]">✓</span> <span>{{ $f }}</span></li>
             @endforeach
           </ul>
         @endif
         @if(count($tags))
           <div class="mt-6 flex flex-wrap gap-2">
             @foreach($tags as $t)
-              <a href="{{ route('search', ['tag' => $t]) }}" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:border-[var(--cc-green)] hover:text-[var(--cc-green)]">{{ $t }}</a>
+              <a href="{{ route('search', ['tag' => $t]) }}" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:border-[#82b440] hover:text-[#82b440]">{{ $t }}</a>
             @endforeach
           </div>
         @endif
@@ -118,10 +124,10 @@
               @endfor
             </div>
             <textarea name="comment" rows="3" class="w-full rounded border border-slate-200 px-3 py-2 text-sm" placeholder="Share your experience…">{{ old('comment', $myReview->comment ?? '') }}</textarea>
-            <button class="rounded bg-[var(--cc-green)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--cc-green-hover)]">{{ $myReview ? 'Update review' : 'Submit review' }}</button>
+            <button class="rounded bg-[#82b440] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6f9a36]">{{ $myReview ? 'Update review' : 'Submit review' }}</button>
           </form>
         @else
-          <p class="mb-4 text-sm text-slate-500"><a href="{{ route('login') }}" class="text-[var(--cc-green)]">Sign in</a> to leave a review.</p>
+          <p class="mb-4 text-sm text-slate-500"><a href="{{ route('login') }}" class="text-[#82b440]">Sign in</a> to leave a review.</p>
         @endauth
         <ul class="space-y-4">
           @forelse($reviews as $review)
@@ -156,14 +162,14 @@
               <td class="px-4 py-3 text-slate-800">
                 @foreach($valList as $i => $v)
                   @if($i > 0)<span class="text-slate-300">, </span>@endif
-                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}" class="text-[var(--cc-green)] hover:underline">{{ $v }}</a>
+                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}" class="text-[#82b440] hover:underline">{{ $v }}</a>
                 @endforeach
               </td>
             </tr>
           @endforeach
           </tbody>
         </table>
-        <p class="border-t border-slate-100 px-4 py-3 text-xs text-slate-400">Click any attribute value to see all matching items.</p>
+        <p class="border-t border-slate-100 px-4 py-3 text-xs text-slate-400">Click any attribute value to browse matching items.</p>
       </div>
       @endif
     </div>
@@ -173,7 +179,7 @@
     <div class="cc-buy-box space-y-4">
       <div class="rounded border border-slate-200 bg-white p-5 shadow-sm">
         @if($isFree)
-          <p class="text-3xl font-bold text-[var(--cc-green)]">Free</p>
+          <p class="text-3xl font-bold text-[#82b440]">Free</p>
         @else
           <div class="flex items-baseline gap-2">
             <p class="text-3xl font-bold text-slate-900">${{ number_format($regular, 2) }}</p>
@@ -188,7 +194,7 @@
           @csrf
           <input type="hidden" name="item_id" value="{{ $item->id }}">
           <input type="hidden" name="license" value="regular">
-          <button class="w-full rounded bg-[var(--cc-green)] py-3 text-sm font-bold text-white hover:bg-[var(--cc-green-hover)]">
+          <button class="w-full rounded bg-[#82b440] py-3 text-sm font-bold text-white hover:bg-[#6f9a36]">
             {{ $isFree ? 'Download Free' : 'Add to Cart' }}
           </button>
         </form>
@@ -206,7 +212,7 @@
 
         @if($item->demo_url)
           <a href="{{ $item->demo_url }}" target="_blank" rel="noopener"
-             class="mt-3 flex w-full items-center justify-center gap-1 rounded border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+             class="mt-3 flex w-full items-center justify-center rounded border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Live Preview
           </a>
         @endif
@@ -216,7 +222,7 @@
           <li class="flex justify-between"><span>Published</span><span class="text-slate-700">{{ $item->created_at?->format('M j, Y') }}</span></li>
           @if($item->category)
             <li class="flex justify-between gap-2"><span>Category</span>
-              <a href="{{ route('category', $item->category->slug) }}" class="text-right text-[var(--cc-green)] hover:underline">{{ $item->category->name }}</a>
+              <a href="{{ route('category', $item->category->slug) }}" class="text-right text-[#82b440] hover:underline">{{ $item->category->name }}</a>
             </li>
           @endif
         </ul>
@@ -226,7 +232,7 @@
       <div class="rounded border border-slate-200 bg-white p-4 shadow-sm">
         <h3 class="text-sm font-semibold text-slate-900">Item attributes</h3>
         <dl class="mt-3 space-y-2.5 text-xs">
-          @foreach(array_slice($attrs, 0, 8, true) as $label => $vals)
+          @foreach(array_slice($attrs, 0, 10, true) as $label => $vals)
             @php
               $labelStr = is_string($label) ? $label : 'Attribute';
               $valList = is_array($vals) ? $vals : [$vals];
@@ -237,7 +243,7 @@
               <dd class="mt-0.5 text-slate-800">
                 @foreach($valList as $i => $v)
                   @if($i > 0)<span class="text-slate-300">, </span>@endif
-                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}" class="text-[var(--cc-green)] hover:underline">{{ $v }}</a>
+                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}" class="text-[#82b440] hover:underline">{{ $v }}</a>
                 @endforeach
               </dd>
             </div>
@@ -249,7 +255,7 @@
       @if($item->author)
       <div class="rounded border border-slate-200 bg-white p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Author</p>
-        <a href="{{ route('author.show', $item->author->username ?: $item->author->id) }}" class="mt-1 block text-sm font-semibold text-slate-900 hover:text-[var(--cc-green)]">
+        <a href="{{ route('author.show', $item->author->username ?: $item->author->id) }}" class="mt-1 block text-sm font-semibold text-slate-900 hover:text-[#82b440]">
           {{ $item->author->name ?: $item->author->username }}
         </a>
       </div>
@@ -277,10 +283,10 @@
   tabs.forEach(function (tab) {
     tab.addEventListener('click', function () {
       tabs.forEach(function (t) {
-        t.classList.remove('border-[var(--cc-green)]', 'text-slate-900');
+        t.classList.remove('border-[#82b440]', 'text-slate-900');
         t.classList.add('border-transparent', 'text-slate-500');
       });
-      tab.classList.add('border-[var(--cc-green)]', 'text-slate-900');
+      tab.classList.add('border-[#82b440]', 'text-slate-900');
       tab.classList.remove('border-transparent', 'text-slate-500');
       panels.forEach(function (p) {
         p.classList.toggle('hidden', p.dataset.panel !== tab.dataset.tab);

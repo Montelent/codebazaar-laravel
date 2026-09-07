@@ -57,7 +57,6 @@ class ProductController extends Controller
         return redirect()->route('admin.products.index')->with('success', 'Product deleted.');
     }
 
-    /** AJAX: attribute options for a category (and parent fallback). */
     public function categoryAttributes(Category $category)
     {
         return response()->json([
@@ -98,10 +97,6 @@ class ProductController extends Controller
         ];
     }
 
-    /**
-     * Load attribute presets from SiteSetting `category_attributes` by category slug,
-     * falling back to parent slug, then empty.
-     */
     protected function resolveAttributeOptions(Category $category): array
     {
         $all = SiteSetting::getValue('category_attributes', AttributeController::defaults());
@@ -120,14 +115,11 @@ class ProductController extends Controller
             }
         }
 
-        // Legacy per-category attribute_schema on the model (array of keys/labels)
         if ((! $attrs || ! is_array($attrs) || count($attrs) === 0) && ! empty($category->attribute_schema)) {
             $schema = $category->attribute_schema;
             $attrs = [];
             if (is_array($schema)) {
-                // Could be label => values map OR list of {key,label}
-                $isList = array_is_list($schema);
-                if ($isList) {
+                if (array_is_list($schema)) {
                     foreach ($schema as $row) {
                         if (is_array($row)) {
                             $label = $row['label'] ?? $row['key'] ?? null;
@@ -172,6 +164,21 @@ class ProductController extends Controller
         return $try;
     }
 
+    /** Ensure TinyMCE HTML is stored as real tags, not escaped entities. */
+    protected function normalizeHtml(?string $html): ?string
+    {
+        if ($html === null || $html === '') {
+            return $html;
+        }
+
+        // If content was double-escaped (&lt;p&gt;...) decode once
+        if (str_contains($html, '&lt;') && ! str_contains($html, '<p') && ! str_contains($html, '<div') && ! str_contains($html, '<h')) {
+            $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        return $html;
+    }
+
     protected function validated(Request $request): array
     {
         $data = $request->validate([
@@ -197,6 +204,7 @@ class ProductController extends Controller
 
         $data['is_free'] = $request->boolean('is_free');
         $data['is_featured'] = $request->boolean('is_featured');
+        $data['description'] = $this->normalizeHtml($data['description'] ?? null);
 
         $data['features'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) $request->input('features_text', '')))));
         $data['gallery_urls'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) $request->input('gallery_text', '')))));
