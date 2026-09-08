@@ -3,6 +3,45 @@
 @section('content')
 <h1 class="mb-4 text-xl font-bold">Orders</h1>
 
+<form method="get" action="{{ route('admin.orders.index') }}" class="mb-4 rounded-xl border bg-white p-4 shadow-sm">
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="sm:col-span-2">
+      <label class="text-xs font-medium text-slate-500">Search</label>
+      <input type="search" name="q" value="{{ request('q') }}" placeholder="Order ID, email, provider…" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Status</label>
+      <select name="status" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <option value="">All</option>
+        @foreach(['pending','paid','failed','refunded','cancelled'] as $st)
+          <option value="{{ $st }}" @selected(request('status') === $st)>{{ ucfirst($st) }}</option>
+        @endforeach
+      </select>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Provider</label>
+      <select name="provider" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <option value="">All</option>
+        @foreach(($providers ?? []) as $prov)
+          <option value="{{ $prov }}" @selected(request('provider') === $prov)>{{ $prov }}</option>
+        @endforeach
+      </select>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">From</label>
+      <input type="date" name="from" value="{{ request('from') }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">To</label>
+      <input type="date" name="to" value="{{ request('to') }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+    </div>
+  </div>
+  <div class="mt-3 flex flex-wrap gap-2">
+    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Filter</button>
+    <a href="{{ route('admin.orders.index') }}" class="rounded-lg border px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</a>
+  </div>
+</form>
+
 <div class="space-y-3 md:hidden">
   @forelse($orders as $o)
     <div class="rounded-xl border bg-white p-4 shadow-sm">
@@ -18,7 +57,7 @@
       </div>
     </div>
   @empty
-    <p class="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">No orders yet.</p>
+    <p class="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">No orders match your filters.</p>
   @endforelse
 </div>
 
@@ -35,7 +74,7 @@
       </tr>
     </thead>
     <tbody>
-      @foreach($orders as $o)
+      @forelse($orders as $o)
         <tr class="border-b last:border-0">
           <td class="px-4 py-3">{{ $o->id }}</td>
           <td class="px-3 py-3">{{ $o->email ?: $o->user?->email }}</td>
@@ -44,7 +83,9 @@
           <td class="px-3 py-3 whitespace-nowrap">{{ $o->created_at?->format('Y-m-d H:i') }}</td>
           <td class="px-4 py-3 text-right"><a href="{{ route('admin.orders.show', $o) }}" class="text-emerald-700">View</a></td>
         </tr>
-      @endforeach
+      @empty
+        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No orders match your filters.</td></tr>
+      @endforelse
     </tbody>
   </table>
 </div>
