@@ -23,15 +23,23 @@ return [
         'secret' => env('STRIPE_SECRET'),
     ],
 
-    /*
-    | CodeCanyon / Envato product activation
-    | - token: Envato API personal token (author account) with "View and search Envato sites" + sales
-    | - item_id: numeric CodeCanyon item ID (optional but recommended)
-    | - licensing_disabled: set true or DISABLE_PRODUCT_LICENSE=true for unrestricted author builds
-    */
     'envato' => [
         'token' => env('ENVATO_PERSONAL_TOKEN'),
         'item_id' => env('ENVATO_ITEM_ID'),
         'licensing_disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
+    ],
+
+    /*
+    | JigSource.store license verification
+    | - verify_url: POST endpoint on your store that validates a license key
+    | - api_key: optional shared secret sent as Bearer / X-Api-Key
+    | - item_id: product id on jigsource for this script
+    | - license_secret: HMAC secret to issue/verify JS1.*.* signed keys offline
+    */
+    'jigsource' => [
+        'verify_url' => env('JIGSOURCE_VERIFY_URL', 'https://jigsource.store/api/license/verify'),
+        'api_key' => env('JIGSOURCE_API_KEY'),
+        'item_id' => env('JIGSOURCE_ITEM_ID'),
+        'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
     ],
 ];
