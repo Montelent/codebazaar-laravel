@@ -15,6 +15,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\Admin\ActivationController;
 use App\Http\Controllers\Admin\AdSettingsController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\BlogAdminController;
@@ -110,8 +111,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 });
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin', 'product.activated'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/activation', [ActivationController::class, 'edit'])->name('activation.edit');
+    Route::post('/activation', [ActivationController::class, 'update'])->name('activation.update');
+    Route::delete('/activation', [ActivationController::class, 'destroy'])->name('activation.destroy');
 
     Route::get('/tools', [SystemToolsController::class, 'index'])->name('tools.index');
     Route::match(['get', 'post'], '/tools/run/{action}', [SystemToolsController::class, 'run'])
