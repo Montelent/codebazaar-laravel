@@ -137,7 +137,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/media/{medium}', [MediaController::class, 'destroy'])->name('media.destroy');
     Route::get('/newsletter', [NewsletterController::class, 'index'])->name('newsletter.index');
     Route::post('/newsletter/send', [NewsletterController::class, 'send'])->name('newsletter.send');
+
+    Route::get('/members', [UserAdminController::class, 'members'])->name('members.index');
+    Route::get('/staff', [UserAdminController::class, 'staff'])->name('staff.index');
     Route::resource('users', UserAdminController::class)->except(['show']);
+
     Route::resource('blog', BlogAdminController::class)->except(['show'])->parameters(['blog' => 'post']);
     Route::resource('pages', PageAdminController::class)->except(['show']);
     Route::resource('licenses', LicenseController::class)->except(['show']);
