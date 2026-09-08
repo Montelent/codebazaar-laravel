@@ -1,6 +1,5 @@
 @extends('layouts.app')
-@section('title', $page->seo_title ?: $page->title)
-@section('meta_description', $page->seo_description)
+@php $seo = \App\Support\Seo::make($page->seoPayload()); @endphp
 @section('content')
 <article class="mx-auto max-w-3xl">
     <h1 class="text-3xl font-bold">{{ $page->title }}</h1>

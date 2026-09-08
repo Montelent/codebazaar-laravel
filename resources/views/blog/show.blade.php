@@ -1,6 +1,5 @@
 @extends('layouts.app')
-@section('title', $post->seo_title ?: $post->title)
-@section('meta_description', $post->seo_description)
+@php $seo = \App\Support\Seo::make($post->seoPayload()); @endphp
 @section('content')
 @php
   $html = (string) ($post->content ?? '');
@@ -13,21 +12,19 @@
     {!! \App\Support\AdSlots::render('blog_post_before') !!}
     <nav class="mb-4 text-sm text-slate-500">
         <a href="{{ route('home') }}" class="hover:text-[#82b440]">Home</a>
-        <span class="mx-1.5 text-slate-300">/</span>
+        <span class="mx-1.5">/</span>
         <a href="{{ route('blog.index') }}" class="hover:text-[#82b440]">Blog</a>
-        <span class="mx-1.5 text-slate-300">/</span>
-        <span class="text-slate-700">{{ \Illuminate\Support\Str::limit($post->title, 40) }}</span>
+        <span class="mx-1.5">/</span>
+        <span class="text-slate-700">{{ $post->title }}</span>
     </nav>
-    <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $post->title }}</h1>
-    <p class="mt-2 text-sm text-slate-500">
-        {{ optional($post->published_at)->format('F j, Y') ?: $post->created_at?->format('F j, Y') }}
-    </p>
-    {!! \App\Support\AdSlots::render('blog_post_after_title') !!}
-    @if($post->cover_url)
-        <img src="{{ $post->cover_url }}" alt="" class="mt-6 w-full rounded border border-slate-200 object-cover">
+    <h1 class="text-3xl font-bold text-slate-900">{{ $post->title }}</h1>
+    @if($post->published_at)
+      <p class="mt-2 text-sm text-slate-500">{{ $post->published_at->format('M j, Y') }}</p>
     @endif
-    <div class="item-body mt-8">{!! $html !!}</div>
-    {!! \App\Support\AdSlots::render('blog_post_end') !!}
+    @if($post->cover_url)
+      <img src="{{ $post->cover_url }}" alt="{{ $post->title }}" class="mt-6 w-full rounded-xl border object-cover">
+    @endif
+    <div class="item-body prose prose-slate mt-8 max-w-none">{!! $html !!}</div>
+    {!! \App\Support\AdSlots::render('blog_post_after') !!}
 </article>
-{!! \App\Support\AdSlots::render('blog_post_after') !!}
 @endsection
