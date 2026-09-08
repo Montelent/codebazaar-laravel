@@ -1,12 +1,21 @@
 @extends('layouts.app')
-@section('title', 'Search · CodeBazaar')
-@section('content')
 @php
   $hasAttr = !empty($attrKey) && !empty($attrVal);
   $hasTag = !empty($tag);
   $view = $view ?? request('view', 'list');
   $sort = $sort ?? request('sort', 'newest');
+  if ($q) { $seoTitle = 'Search: '.$q; }
+  elseif ($hasAttr) { $seoTitle = $attrKey.': '.$attrVal; }
+  elseif ($hasTag) { $seoTitle = 'Tag: '.$tag; }
+  else { $seoTitle = 'Browse items'; }
+  $seo = \App\Support\Seo::make([
+    'title' => $seoTitle,
+    'description' => 'Search and filter digital code items on '.\App\Support\Seo::siteName().'.',
+    'canonical' => url('/search'),
+    'robots' => 'index, follow',
+  ]);
 @endphp
+@section('content')
 
 {!! \App\Support\AdSlots::render('search_top') !!}
 
@@ -17,17 +26,7 @@
 </nav>
 
 <div class="flex flex-wrap items-end justify-between gap-3">
-  <h1 class="text-xl font-bold text-slate-900 sm:text-2xl">
-    @if($q)
-      Results for “{{ $q }}”
-    @elseif($hasAttr)
-      {{ $attrKey }}: {{ $attrVal }}
-    @elseif($hasTag)
-      Tag: {{ $tag }}
-    @else
-      Browse items
-    @endif
-  </h1>
+  <h1 class="text-xl font-bold text-slate-900 sm:text-2xl">{{ $seoTitle }}</h1>
   <p class="text-[13px] text-slate-500">{{ number_format($items->total()) }} {{ \Illuminate\Support\Str::plural('item', $items->total()) }}</p>
 </div>
 
@@ -50,7 +49,7 @@
 @endif
 
 <details class="mt-4 rounded border border-slate-200 bg-white lg:hidden">
-  <summary class="cursor-pointer px-4 py-3 text-[13px] font-semibold text-slate-800">Filter & Refine</summary>
+  <summary class="cursor-pointer px-4 py-3 text-[13px] font-semibold text-slate-800">Filter &amp; Refine</summary>
   <div class="border-t border-slate-100 p-3">
     @include('components.catalog-sidebar', [
       'sidebarCategories' => $sidebarCategories ?? collect(),

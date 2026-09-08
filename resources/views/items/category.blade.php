@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $category->name . ' · CodeBazaar')
+@php $seo = \App\Support\Seo::make($category->seoPayload()); @endphp
 @section('content')
 @php
   $catTrail = $category->breadcrumbTrail();
@@ -30,9 +30,8 @@
   <p class="text-[13px] text-slate-500">{{ number_format($items->total()) }} {{ \Illuminate\Support\Str::plural('item', $items->total()) }}</p>
 </div>
 
-{{-- Mobile filter toggle --}}
 <details class="mt-4 rounded border border-slate-200 bg-white lg:hidden">
-  <summary class="cursor-pointer px-4 py-3 text-[13px] font-semibold text-slate-800">Filter & Refine</summary>
+  <summary class="cursor-pointer px-4 py-3 text-[13px] font-semibold text-slate-800">Filter &amp; Refine</summary>
   <div class="border-t border-slate-100 p-3">
     @include('components.catalog-sidebar', [
       'sidebarCategories' => $sidebarCategories,
@@ -65,10 +64,8 @@
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2 text-[13px]">
         <span class="text-slate-500">View:</span>
-        <a href="{{ request()->fullUrlWithQuery(['view' => 'list']) }}"
-           class="rounded px-2 py-1 {{ $view === 'list' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600' }}">List</a>
-        <a href="{{ request()->fullUrlWithQuery(['view' => 'grid']) }}"
-           class="rounded px-2 py-1 {{ $view === 'grid' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600' }}">Grid</a>
+        <a href="{{ request()->fullUrlWithQuery(['view' => 'list']) }}" class="rounded px-2 py-1 {{ $view === 'list' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600' }}">List</a>
+        <a href="{{ request()->fullUrlWithQuery(['view' => 'grid']) }}" class="rounded px-2 py-1 {{ $view === 'grid' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600' }}">Grid</a>
       </div>
       <form method="get" class="flex items-center gap-2 text-[13px]">
         @foreach(request()->except(['sort','page']) as $k => $v)
