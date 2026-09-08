@@ -9,26 +9,19 @@ use Illuminate\Support\Str;
 /**
  * Marketplace product activation (CodeCanyon / Envato purchase code).
  *
- * Buyers activate with a valid Envato purchase code (one active domain per code).
- * The author may unlock any install permanently with the private master passphrase
- * (never shown in the UI — enter it in the same field as a purchase code).
+ * Buyers activate with a valid Envato purchase code (bound to one domain).
+ * Author master unlock uses a private passphrase known only offline;
+ * only a SHA-256 hash is stored in this file (never the plaintext).
  */
 class ProductActivation
 {
     public const SETTING_KEY = 'product_activation';
 
     /**
-     * SHA-256 of "cbz-master-v1|{passphrase}".
-     * Passphrase is private to the author; only the hash is stored in source.
+     * SHA-256 hex of: cbz-master-v1|{author_master_passphrase}
+     * To rotate: hash the new string offline and replace this constant.
      */
-    private const MASTER_HASH = '8f3c7e2a1b9d4e6f0a5c8b7d2e1f4a6c9b0d3e5f7a8c1b2d4e6f0a9c8b7d5e3f';
-
-    /** Recompute and document: hash of master phrase (updated at deploy time). */
-    public static function masterHash(): string
-    {
-        // Computed hash for the author master passphrase (not stored in plain text).
-        return hash('sha256', 'cbz-master-v1|montelent-tonytel-vic-nig-1997');
-    }
+    private const MASTER_KEY_HASH = 'b5f42eef7ade7f8256a03f6e3bd441d9950b54f290e653cb57b7455d635687dc';
 
     public static function status(): array
     {
@@ -45,12 +38,10 @@ class ProductActivation
         $active = ! empty($data['active']);
         $type = $data['type'] ?? null;
 
-        // Master unlock is permanent on any domain.
         if ($active && $type === 'master') {
             return array_merge($data, ['active' => true, 'locked' => false]);
         }
 
-        // Envato: optionally enforce domain match
         if ($active && $type === 'envato') {
             $bound = strtolower((string) ($data['domain'] ?? ''));
             $current = self::currentDomain();
@@ -101,8 +92,9 @@ class ProductActivation
             return ['ok' => false, 'message' => 'Please enter a purchase code or activation key.'];
         }
 
-        // Master passphrase — permanent unlock on any domain
-        if (hash_equals(self::masterHash(), hash('sha256', 'cbz-master-v1|'.$code))) {
+        // Author master passphrase (compared via hash only)
+        $attempt = hash('sha256', 'cbz-master-v1|'.$code);
+        if (hash_equals(self::MASTER_KEY_HASH, $attempt)) {
             self::persist([
                 'active' => true,
                 'type' => 'master',
@@ -115,7 +107,6 @@ class ProductActivation
             return ['ok' => true, 'message' => 'Author master key accepted. Product unlocked permanently on this install.', 'type' => 'master'];
         }
 
-        // Envato purchase code (UUID-style)
         if (! preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $code)) {
             return ['ok' => false, 'message' => 'Invalid format. Enter a valid Envato purchase code (or contact the author).'];
         }
@@ -124,8 +115,6 @@ class ProductActivation
         $itemId = (string) config('services.envato.item_id', env('ENVATO_ITEM_ID', ''));
 
         if ($token === '') {
-            // Offline / demo mode: accept well-formed codes and bind to domain when API token is not configured.
-            // For production CodeCanyon sales, set ENVATO_PERSONAL_TOKEN so codes are verified live.
             self::persist([
                 'active' => true,
                 'type' => 'envato',
@@ -209,7 +198,6 @@ class ProductActivation
     {
         SiteSetting::setValue(self::SETTING_KEY, $data, 'system');
 
-        // Mirror to a file lock as backup (survives DB-only resets less easily combined with DB).
         try {
             $path = storage_path('app/product_activation.json');
             if (! is_dir(dirname($path))) {
@@ -217,11 +205,10 @@ class ProductActivation
             }
             file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
         } catch (\Throwable) {
-            // ignore
+            //
         }
     }
 
-    /** Routes still allowed while locked (name patterns). */
     public static function allowedRouteNames(): array
     {
         return [
