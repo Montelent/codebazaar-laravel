@@ -10,11 +10,44 @@ use Illuminate\Support\Str;
 
 class BlogAdminController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $posts = BlogPost::orderByDesc('created_at')->paginate(30);
+        $q = BlogPost::query();
 
-        return view('admin.blog.index', compact('posts'));
+        if ($request->filled('q')) {
+            $term = trim((string) $request->input('q'));
+            $q->where(function ($w) use ($term) {
+                $w->where('title', 'like', "%{$term}%")
+                    ->orWhere('slug', 'like', "%{$term}%")
+                    ->orWhere('excerpt', 'like', "%{$term}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $q->where('status', $request->input('status'));
+        }
+
+        if ($request->filled('category')) {
+            $q->where('category', $request->input('category'));
+        }
+
+        if ($request->filled('from')) {
+            $q->whereDate('created_at', '>=', $request->input('from'));
+        }
+        if ($request->filled('to')) {
+            $q->whereDate('created_at', '<=', $request->input('to'));
+        }
+
+        $posts = $q->orderByDesc('created_at')->paginate(30)->withQueryString();
+
+        $categories = BlogPost::query()
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return view('admin.blog.index', compact('posts', 'categories'));
     }
 
     public function create()
