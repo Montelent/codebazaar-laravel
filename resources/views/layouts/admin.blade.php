@@ -77,6 +77,26 @@ document.addEventListener('DOMContentLoaded', function () {
   if (closeBtn) closeBtn.addEventListener('click', closeMenu);
   if (backdrop) backdrop.addEventListener('click', closeMenu);
 
+  // Collapsible nav groups (Settings drawer)
+  document.querySelectorAll('[data-nav-group]').forEach(function (group) {
+    var toggle = group.querySelector('[data-nav-toggle]');
+    var panel = group.querySelector('[data-nav-panel]');
+    var chevron = group.querySelector('[data-nav-chevron]');
+    if (!toggle || !panel) return;
+    toggle.addEventListener('click', function () {
+      var open = !panel.classList.contains('hidden');
+      if (open) {
+        panel.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+        if (chevron) chevron.classList.remove('rotate-90');
+      } else {
+        panel.classList.remove('hidden');
+        toggle.setAttribute('aria-expanded', 'true');
+        if (chevron) chevron.classList.add('rotate-90');
+      }
+    });
+  });
+
   if (typeof tinymce !== 'undefined') {
     tinymce.init({
       selector: 'textarea.tinymce',
@@ -92,14 +112,12 @@ document.addEventListener('DOMContentLoaded', function () {
       branding: false,
       promotion: false,
       license_key: 'gpl',
-      // Keep full HTML (do not strip styles the author applied)
       valid_elements: '*[*]',
       extended_valid_elements: '*[*]',
       verify_html: false,
       entity_encoding: 'raw',
       content_style: 'body{font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#222} p{margin:0 0 1em} h1,h2,h3{font-weight:700;margin:1em 0 .5em} ul,ol{padding-left:1.4em;margin:0 0 1em} img{max-width:100%;height:auto}',
       setup: function (editor) {
-        // Always flush editor HTML into the textarea before any form submit
         editor.on('change keyup', function () { editor.save(); });
       }
     });
