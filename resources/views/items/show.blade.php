@@ -1,6 +1,14 @@
 @extends('layouts.app')
-@section('title', $item->title)
-@section('meta_description', \Illuminate\Support\Str::limit(strip_tags($item->description ?? $item->title), 160))
+@php
+  $seo = \App\Support\Seo::make($item->seoPayload());
+  $breadcrumbs = [['name' => 'Home', 'url' => url('/')]];
+  if ($item->category) {
+      foreach ($item->category->breadcrumbTrail() as $c) {
+          $breadcrumbs[] = ['name' => $c->name, 'url' => route('category', $c->slug)];
+      }
+  }
+  $breadcrumbs[] = ['name' => $item->title, 'url' => route('item.show', [$item->slug, $item->id])];
+@endphp
 @section('content')
 @php
   $gallery = is_array($item->gallery_urls) ? array_values(array_filter($item->gallery_urls)) : [];
@@ -69,9 +77,7 @@
       @if(count($previews) > 1)
         <div class="flex gap-2 overflow-x-auto border-t border-slate-100 bg-white p-3">
           @foreach($previews as $i => $img)
-            <button type="button" class="cc-thumb shrink-0 overflow-hidden rounded border-2 {{ $i === 0 ? 'border-[#82b440]' : 'border-transparent' }}"
-                    data-src="{{ $img }}"
-                    onclick="document.getElementById('cc-main-preview').src=this.dataset.src;document.querySelectorAll('.cc-thumb').forEach(t=>t.classList.remove('border-[#82b440]'));this.classList.add('border-[#82b440]');">
+            <button type="button" class="cc-thumb shrink-0 overflow-hidden rounded border-2 {{ $i === 0 ? 'border-[#82b440]' : 'border-transparent' }}" data-src="{{ $img }}" onclick="document.getElementById('cc-main-preview').src=this.dataset.src;document.querySelectorAll('.cc-thumb').forEach(t=>t.classList.remove('border-[#82b440]'));this.classList.add('border-[#82b440]');">
               <img src="{{ $img }}" class="h-14 w-20 object-cover" alt="">
             </button>
           @endforeach
@@ -129,10 +135,7 @@
           @forelse($reviews as $review)
             <li class="border-t border-slate-100 pt-4 first:border-0 first:pt-0">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <p class="text-sm font-medium text-slate-800">
-                  {{ $review->user?->name ?: $review->user?->username ?: 'Buyer' }}
-                  <span class="ml-1 text-amber-500">{{ str_repeat('★', (int)$review->rating) }}{{ str_repeat('☆', 5-(int)$review->rating) }}</span>
-                </p>
+                <p class="text-sm font-medium text-slate-800">{{ $review->user?->name ?: $review->user?->username ?: 'Buyer' }} <span class="ml-1 text-amber-500">{{ str_repeat('★', (int)$review->rating) }}{{ str_repeat('☆', 5-(int)$review->rating) }}</span></p>
                 <span class="text-xs text-slate-400">{{ $review->created_at?->diffForHumans() }}</span>
               </div>
               @if($review->comment)<p class="mt-1 text-sm text-slate-600">{{ $review->comment }}</p>@endif
@@ -178,9 +181,6 @@
         @else
           <div class="flex items-baseline gap-2">
             <p class="text-3xl font-bold text-slate-900">${{ number_format($regular, 2) }}</p>
-            @if($item->sale_price_regular !== null && (float)$item->regular_price > $regular)
-              <span class="text-sm text-slate-400 line-through">${{ number_format($item->regular_price, 2) }}</span>
-            @endif
           </div>
           <p class="mt-0.5 text-sm text-slate-500">Regular License</p>
         @endif
@@ -211,35 +211,6 @@
           @endif
         </ul>
       </div>
-      @if(count($attrs))
-      <div class="rounded border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 class="text-sm font-semibold text-slate-900">Item attributes</h3>
-        <dl class="mt-3 space-y-2.5 text-xs">
-          @foreach(array_slice($attrs, 0, 10, true) as $label => $vals)
-            @php
-              $labelStr = is_string($label) ? $label : 'Attribute';
-              $valList = is_array($vals) ? $vals : [$vals];
-              $valList = array_values(array_filter(array_map(fn ($v) => is_scalar($v) ? (string) $v : null, $valList)));
-            @endphp
-            <div>
-              <dt class="font-medium text-slate-500">{{ $labelStr }}</dt>
-              <dd class="mt-0.5 text-slate-800">
-                @foreach($valList as $i => $v)
-                  @if($i > 0)<span class="text-slate-300">, </span>@endif
-                  <a href="{{ route('search', ['attr' => $labelStr, 'val' => $v]) }}" class="text-[#82b440] hover:underline">{{ $v }}</a>
-                @endforeach
-              </dd>
-            </div>
-          @endforeach
-        </dl>
-      </div>
-      @endif
-      @if($item->author)
-      <div class="rounded border border-slate-200 bg-white p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Author</p>
-        <a href="{{ route('author.show', $item->author->username ?: $item->author->id) }}" class="mt-1 block text-sm font-semibold text-slate-900 hover:text-[#82b440]">{{ $item->author->name ?: $item->author->username }}</a>
-      </div>
-      @endif
       {!! \App\Support\AdSlots::render('product_sidebar') !!}
     </div>
   </aside>
