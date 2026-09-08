@@ -9,6 +9,7 @@ class Item extends Model
 {
     protected $fillable = [
         'title', 'slug', 'description', 'features', 'tags', 'attributes', 'gallery_urls',
+        'version', 'changelog',
         'regular_price', 'extended_price', 'sale_price_regular', 'sale_price_extended',
         'is_free', 'thumbnail_url', 'demo_url', 'main_file_url', 'download_files',
         'status', 'is_featured', 'sales_count', 'rating_avg', 'rating_count',
@@ -23,6 +24,7 @@ class Item extends Model
         'attributes' => 'array',
         'gallery_urls' => 'array',
         'download_files' => 'array',
+        'changelog' => 'array',
         'is_free' => 'boolean',
         'is_featured' => 'boolean',
         'regular_price' => 'decimal:2',
@@ -44,6 +46,35 @@ class Item extends Model
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');
+    }
+
+    /**
+     * Normalized changelog entries newest-first.
+     *
+     * @return list<array{version:string,date:?string,changes:string}>
+     */
+    public function changelogList(): array
+    {
+        $rows = is_array($this->changelog) ? $this->changelog : [];
+        $out = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $version = trim((string) ($row['version'] ?? ''));
+            $changes = trim((string) ($row['changes'] ?? $row['notes'] ?? ''));
+            if ($version === '' && $changes === '') {
+                continue;
+            }
+            $out[] = [
+                'version' => $version !== '' ? $version : 'Update',
+                'date' => trim((string) ($row['date'] ?? '')) ?: null,
+                'changes' => $changes,
+            ];
+        }
+
+        return $out;
     }
 
     public function effectiveRegularPrice(): float
