@@ -31,32 +31,25 @@ class Seo
     }
 
     /**
-     * Build a full SEO payload for the current page.
-     *
-     * @param  array{
-     *   title?: string,
-     *   description?: string,
-     *   keywords?: string,
-     *   canonical?: string,
-     *   robots?: string,
-     *   og_title?: string,
-     *   og_description?: string,
-     *   og_image?: string,
-     *   og_type?: string,
-     *   twitter_card?: string,
-     *   noindex?: bool
-     * }  $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     public static function make(array $overrides = []): array
     {
         $site = self::siteName();
-        $title = trim((string) ($overrides['title'] ?? $site));
-        if ($title !== '' && ! str_contains($title, $site)) {
-            $title = $title.' · '.$site;
+        $rawTitle = trim((string) ($overrides['title'] ?? ''));
+        if ($rawTitle === '' || $rawTitle === 'null') {
+            $title = $site;
+        } elseif (! str_contains($rawTitle, $site)) {
+            $title = $rawTitle.' · '.$site;
+        } else {
+            $title = $rawTitle;
         }
 
         $description = trim((string) ($overrides['description'] ?? self::defaultDescription()));
+        if ($description === '' || $description === 'null') {
+            $description = self::defaultDescription();
+        }
         $description = Str::limit(strip_tags($description), 160, '…');
 
         $canonical = $overrides['canonical'] ?? url()->current();
@@ -68,7 +61,10 @@ class Seo
         }
         $robots = $robots ?: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 
-        $ogTitle = trim((string) ($overrides['og_title'] ?? $overrides['title'] ?? $site));
+        $ogTitle = trim((string) ($overrides['og_title'] ?? $rawTitle ?: $site));
+        if ($ogTitle === '') {
+            $ogTitle = $site;
+        }
         $ogDescription = Str::limit(strip_tags((string) ($overrides['og_description'] ?? $description)), 200, '…');
         $ogImage = trim((string) ($overrides['og_image'] ?? self::defaultImage()));
         if ($ogImage !== '' && ! str_starts_with($ogImage, 'http')) {
@@ -91,6 +87,7 @@ class Seo
             'twitter_title' => $ogTitle,
             'twitter_description' => $ogDescription,
             'twitter_image' => $ogImage,
+            'theme_color' => '#82b440',
         ];
     }
 
@@ -103,7 +100,6 @@ class Seo
         if (! str_starts_with($url, 'http')) {
             $url = url($url);
         }
-        // Strip tracking query noise for canonicals
         $parts = parse_url($url);
         if (! is_array($parts) || empty($parts['host'])) {
             return $url;
@@ -116,7 +112,6 @@ class Seo
         return $scheme.'://'.$host.$port.$path;
     }
 
-    /** Shared validation rules for Rank Math-style SEO fields. */
     public static function rules(): array
     {
         return [
