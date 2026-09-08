@@ -4,17 +4,26 @@
 <div class="mx-auto max-w-xl">
   <h1 class="text-xl font-bold">License activation</h1>
   <p class="mt-1 text-sm text-slate-500">
-    Enter your <strong>Envato / CodeCanyon purchase code</strong> to unlock the full admin.
+    Unlock the full admin with a <strong>JigSource.store license key</strong> or an
+    <strong>Envato / CodeCanyon purchase code</strong>.
     Until activated, only <strong>Basic settings</strong> and <strong>Blog</strong> remain available.
   </p>
 
-  @php $active = !empty($status['active']); @endphp
+  @php
+    $active = !empty($status['active']);
+    $typeLabel = match ($status['type'] ?? null) {
+      'master' => 'Author master unlock',
+      'jigsource' => 'JigSource.store license',
+      'envato' => 'Envato / CodeCanyon license',
+      default => ($status['type'] ?? 'Unknown'),
+    };
+  @endphp
 
   @if($active)
     <div class="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
       <p class="font-semibold">Product is activated</p>
       <ul class="mt-2 space-y-1 text-emerald-800">
-        <li>Type: <strong>{{ $status['type'] === 'master' ? 'Author master unlock' : 'Envato license' }}</strong></li>
+        <li>Type: <strong>{{ $typeLabel }}</strong></li>
         @if(!empty($status['domain']))
           <li>Domain: <code>{{ $status['domain'] }}</code></li>
         @endif
@@ -37,12 +46,15 @@
     <form method="post" action="{{ route('admin.activation.update') }}" class="mt-6 space-y-4 rounded-xl border bg-white p-6 shadow-sm">
       @csrf
       <div>
-        <label class="text-sm font-medium">Purchase code / activation key</label>
+        <label class="text-sm font-medium">License key / purchase code</label>
         <input name="purchase_code" value="{{ old('purchase_code') }}" required autocomplete="off"
                class="mt-1 w-full rounded-lg border px-3 py-2.5 font-mono text-sm"
-               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+               placeholder="JigSource key or Envato UUID">
         <p class="mt-1 text-xs text-slate-500">
-          Find it under Envato → Downloads → License certificate / purchase code.
+          <strong>JigSource:</strong> from your order / downloads on
+          <a class="text-emerald-700 underline" href="https://jigsource.store" target="_blank" rel="noopener">jigsource.store</a>.
+          <br>
+          <strong>Envato:</strong> CodeCanyon → Downloads → License certificate.
         </p>
       </div>
       <button class="w-full rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
