@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Admin\SmtpSettingsController;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +34,13 @@ class AppServiceProvider extends ServiceProvider
 
         if (str_starts_with($root, 'https://') || filter_var(env('FORCE_HTTPS', true), FILTER_VALIDATE_BOOLEAN)) {
             URL::forceScheme('https');
+        }
+
+        // Runtime SMTP from Admin → Settings → SMTP
+        try {
+            SmtpSettingsController::applyConfig();
+        } catch (\Throwable) {
+            // DB may not be ready during install / migrate
         }
     }
 }
