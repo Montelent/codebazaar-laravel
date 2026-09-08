@@ -132,6 +132,7 @@ class ProductController extends Controller
         $tagPresets = SiteSetting::getValue('tags', ['React', 'Laravel', 'WordPress', 'Vue', 'PHP', 'HTML', 'SaaS', 'Dashboard']);
 
         $downloadFiles = $item->exists ? $item->downloadFilesList() : [];
+        $changelogEntries = $item->exists ? $item->changelogList() : [];
 
         return [
             'item' => $item,
@@ -142,6 +143,7 @@ class ProductController extends Controller
             'attrOptions' => $attrOptions,
             'tagPresets' => $tagPresets,
             'downloadFiles' => $downloadFiles,
+            'changelogEntries' => $changelogEntries,
         ];
     }
 
@@ -263,6 +265,33 @@ class ProductController extends Controller
         return $files;
     }
 
+    /** @return list<array{version:string,date:?string,changes:string}> */
+    protected function parseChangelog(Request $request): array
+    {
+        $entries = [];
+        $rows = $request->input('changelog', []);
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $version = trim((string) ($row['version'] ?? ''));
+                $date = trim((string) ($row['date'] ?? ''));
+                $changes = trim((string) ($row['changes'] ?? ''));
+                if ($version === '' && $changes === '') {
+                    continue;
+                }
+                $entries[] = [
+                    'version' => $version !== '' ? $version : 'Update',
+                    'date' => $date !== '' ? $date : null,
+                    'changes' => $changes,
+                ];
+            }
+        }
+
+        return $entries;
+    }
+
     protected function validated(Request $request): array
     {
         $data = $request->validate(array_merge([
@@ -288,6 +317,11 @@ class ProductController extends Controller
             'download_files.*.label' => 'nullable|string|max:200',
             'download_files.*.url' => 'nullable|string|max:2000',
             'download_files.*.type' => 'nullable|in:main,addon,extra',
+            'version' => 'nullable|string|max:40',
+            'changelog' => 'nullable|array',
+            'changelog.*.version' => 'nullable|string|max:40',
+            'changelog.*.date' => 'nullable|string|max:40',
+            'changelog.*.changes' => 'nullable|string|max:5000',
         ], Seo::rules()));
 
         $data['is_free'] = $request->boolean('is_free');
@@ -316,6 +350,16 @@ class ProductController extends Controller
             $data['download_files'] = $downloadFiles;
         } else {
             unset($data['download_files']);
+        }
+
+        $changelog = $this->parseChangelog($request);
+        if (Schema::hasColumn('items', 'changelog')) {
+            $data['changelog'] = $changelog;
+        } else {
+            unset($data['changelog']);
+        }
+        if (! Schema::hasColumn('items', 'version')) {
+            unset($data['version']);
         }
 
         foreach (array_keys(Seo::rules()) as $seoKey) {
