@@ -24,6 +24,7 @@ class SitemapController extends Controller
             'Disallow: /register',
             'Disallow: /install',
             'Disallow: /setup',
+            'Disallow: /email',
             '',
             'Sitemap: '.url('/sitemap.xml'),
         ];
@@ -69,6 +70,9 @@ class SitemapController extends Controller
         try {
             if (Schema::hasTable('categories')) {
                 foreach (Category::orderBy('name')->get() as $c) {
+                    if ($this->isNoindex($c->robots ?? null)) {
+                        continue;
+                    }
                     $groups['Categories'][] = [
                         'title' => $c->name,
                         'url' => route('category', $c->slug),
@@ -76,7 +80,10 @@ class SitemapController extends Controller
                 }
             }
             if (Schema::hasTable('items')) {
-                foreach (Item::approved()->orderBy('title')->get(['id', 'title', 'slug']) as $item) {
+                foreach (Item::approved()->orderBy('title')->get(['id', 'title', 'slug', 'robots']) as $item) {
+                    if ($this->isNoindex($item->robots ?? null)) {
+                        continue;
+                    }
                     $groups['Products'][] = [
                         'title' => $item->title,
                         'url' => route('item.show', [$item->slug, $item->id]),
@@ -85,6 +92,9 @@ class SitemapController extends Controller
             }
             if (Schema::hasTable('blog_posts')) {
                 foreach (BlogPost::where('status', 'published')->orderByDesc('published_at')->get() as $post) {
+                    if ($this->isNoindex($post->robots ?? null)) {
+                        continue;
+                    }
                     $groups['Blog'][] = [
                         'title' => $post->title,
                         'url' => route('blog.show', $post->slug),
@@ -93,6 +103,9 @@ class SitemapController extends Controller
             }
             if (Schema::hasTable('cms_pages')) {
                 foreach (CmsPage::where('status', 'published')->orderBy('title')->get() as $page) {
+                    if ($this->isNoindex($page->robots ?? null)) {
+                        continue;
+                    }
                     $groups['Pages'][] = [
                         'title' => $page->title,
                         'url' => route('page.show', $page->slug),
@@ -120,6 +133,9 @@ class SitemapController extends Controller
         try {
             if (Schema::hasTable('categories')) {
                 foreach (Category::orderBy('name')->get() as $c) {
+                    if ($this->isNoindex($c->robots ?? null)) {
+                        continue;
+                    }
                     $urls[] = [
                         'loc' => route('category', $c->slug),
                         'lastmod' => optional($c->updated_at)->toAtomString() ?: $now,
@@ -129,7 +145,10 @@ class SitemapController extends Controller
                 }
             }
             if (Schema::hasTable('items')) {
-                foreach (Item::approved()->get(['id', 'slug', 'updated_at']) as $item) {
+                foreach (Item::approved()->get(['id', 'slug', 'updated_at', 'robots']) as $item) {
+                    if ($this->isNoindex($item->robots ?? null)) {
+                        continue;
+                    }
                     $urls[] = [
                         'loc' => route('item.show', [$item->slug, $item->id]),
                         'lastmod' => optional($item->updated_at)->toAtomString() ?: $now,
@@ -140,6 +159,9 @@ class SitemapController extends Controller
             }
             if (Schema::hasTable('blog_posts')) {
                 foreach (BlogPost::where('status', 'published')->get() as $post) {
+                    if ($this->isNoindex($post->robots ?? null)) {
+                        continue;
+                    }
                     $urls[] = [
                         'loc' => route('blog.show', $post->slug),
                         'lastmod' => optional($post->updated_at ?: $post->published_at)->toAtomString() ?: $now,
@@ -150,6 +172,9 @@ class SitemapController extends Controller
             }
             if (Schema::hasTable('cms_pages')) {
                 foreach (CmsPage::where('status', 'published')->get() as $page) {
+                    if ($this->isNoindex($page->robots ?? null)) {
+                        continue;
+                    }
                     $urls[] = [
                         'loc' => route('page.show', $page->slug),
                         'lastmod' => optional($page->updated_at)->toAtomString() ?: $now,
@@ -163,5 +188,14 @@ class SitemapController extends Controller
         }
 
         return $urls;
+    }
+
+    protected function isNoindex(?string $robots): bool
+    {
+        if (! $robots) {
+            return false;
+        }
+
+        return str_contains(strtolower($robots), 'noindex');
     }
 }
