@@ -4,22 +4,25 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\NewsletterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 class NewsletterController extends Controller
 {
     public function index()
     {
         $subscribers = User::where('newsletter', true)->orderBy('email')->get(['id', 'name', 'email', 'email_verified_at']);
-        $allUsers = User::count();
+        $allUsers = User::orderBy('email')->get(['id', 'name', 'email', 'role', 'newsletter', 'email_verified_at']);
         $logs = [];
         if (DB::getSchemaBuilder()->hasTable('newsletter_logs')) {
             $logs = DB::table('newsletter_logs')->orderByDesc('id')->limit(20)->get();
         }
 
-        return view('admin.newsletter.index', compact('subscribers', 'allUsers', 'logs'));
+        $shortcodes = NewsletterService::shortcodeHelp();
+        $defaultBody = NewsletterService::defaultWeeklyBody();
+
+        return view('admin.newsletter.index', compact('subscribers', 'allUsers', 'logs', 'shortcodes', 'defaultBody'));
     }
 
     public function send(Request $request)
@@ -27,58 +30,38 @@ class NewsletterController extends Controller
         $data = $request->validate([
             'subject' => 'required|string|max:200',
             'body' => 'required|string',
-            'audience' => 'required|in:newsletter,all,verified',
+            'audience' => 'required|in:newsletter,all,verified,selected,first_100_newsletter,first_100_all',
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'integer|exists:users,id',
+            'template' => 'nullable|in:custom,weekly',
         ]);
 
-        $query = User::query()->whereNotNull('email');
-        if ($data['audience'] === 'newsletter') {
-            $query->where('newsletter', true);
-        } elseif ($data['audience'] === 'verified') {
-            $query->whereNotNull('email_verified_at');
+        $body = $data['body'];
+        if (($data['template'] ?? '') === 'weekly' && ! str_contains($body, '{{weekly_')) {
+            $body = NewsletterService::defaultWeeklyBody();
         }
 
-        $users = $query->get();
-        $sent = 0;
-        $errors = 0;
+        $recipients = NewsletterService::resolveRecipients([
+            'audience' => $data['audience'],
+            'user_ids' => $data['user_ids'] ?? [],
+        ]);
 
-        foreach ($users as $user) {
-            try {
-                Mail::raw(strip_tags($data['body'])."\n\n— CodeBazaar", function ($message) use ($user, $data) {
-                    $message->to($user->email, $user->name ?: $user->email)
-                        ->subject($data['subject']);
-                });
-                // Prefer HTML when possible
-                try {
-                    Mail::html($data['body'], function ($message) use ($user, $data) {
-                        $message->to($user->email, $user->name ?: $user->email)
-                            ->subject($data['subject']);
-                    });
-                } catch (\Throwable) {
-                    // raw already attempted
-                }
-                $sent++;
-            } catch (\Throwable $e) {
-                $errors++;
-            }
+        if ($recipients->isEmpty()) {
+            return back()->withInput()->with('error', 'No recipients matched that audience.');
         }
 
-        if (DB::getSchemaBuilder()->hasTable('newsletter_logs')) {
-            DB::table('newsletter_logs')->insert([
-                'subject' => $data['subject'],
-                'body' => $data['body'],
-                'recipients' => $sent,
-                'sent_by' => $request->user()->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        $result = NewsletterService::send(
+            $data['subject'],
+            $body,
+            $recipients,
+            $request->user()->id
+        );
+
+        $msg = "Newsletter sent to {$result['sent']} recipient(s).";
+        if ($result['errors']) {
+            $msg .= " {$result['errors']} failed — check SMTP settings.";
         }
 
-        $msg = "Newsletter queued/sent to {$sent} recipient(s).";
-        if ($errors) {
-            $msg .= " {$errors} failed (check MAIL_* in .env)."
-;
-        }
-
-        return back()->with('success', $msg);
+        return back()->with($result['errors'] && ! $result['sent'] ? 'error' : 'success', $msg);
     }
 }
