@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
+use App\Services\NewsletterService;
 use App\Support\Seo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -63,9 +64,12 @@ class BlogAdminController extends Controller
         if (($data['status'] ?? '') === 'published' && empty($data['published_at'])) {
             $data['published_at'] = now();
         }
-        BlogPost::create($data);
+        $post = BlogPost::create($data);
 
-        return redirect()->route('admin.blog.index')->with('success', 'Post created.');
+        $msg = 'Post created.';
+        $msg .= $this->maybeNotify($request, $post);
+
+        return redirect()->route('admin.blog.index')->with('success', $msg);
     }
 
     public function edit(BlogPost $post)
@@ -81,8 +85,12 @@ class BlogAdminController extends Controller
             $data['published_at'] = now();
         }
         $post->update($data);
+        $post->refresh();
 
-        return redirect()->route('admin.blog.index')->with('success', 'Post updated.');
+        $msg = 'Post updated.';
+        $msg .= $this->maybeNotify($request, $post);
+
+        return redirect()->route('admin.blog.index')->with('success', $msg);
     }
 
     public function destroy(BlogPost $post)
@@ -90,6 +98,29 @@ class BlogAdminController extends Controller
         $post->delete();
 
         return back()->with('success', 'Post deleted.');
+    }
+
+    protected function maybeNotify(Request $request, BlogPost $post): string
+    {
+        if (! $request->boolean('notify_subscribers')) {
+            return '';
+        }
+        if (($post->status ?? '') !== 'published') {
+            return ' (notify skipped — post is not published).';
+        }
+
+        $audience = $request->input('notify_audience', 'newsletter');
+        if (! in_array($audience, ['newsletter', 'all', 'verified', 'first_100_newsletter', 'first_100_all'], true)) {
+            $audience = 'newsletter';
+        }
+
+        try {
+            $result = NewsletterService::notifyPost($post, $audience, $request->user()->id);
+
+            return " Newsletter sent to {$result['sent']} recipient(s)".($result['errors'] ? ", {$result['errors']} failed" : '').'.';
+        } catch (\Throwable $e) {
+            return ' Newsletter failed: '.$e->getMessage();
+        }
     }
 
     protected function validated(Request $request): array
