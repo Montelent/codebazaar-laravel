@@ -1,6 +1,10 @@
 @extends('layouts.admin')
 @section('title', 'SMTP / Email')
 @section('content')
+@php
+  $providers = $providers ?? \App\Http\Controllers\Admin\SmtpSettingsController::providers();
+  $currentMailer = old('mailer', $smtp['mailer'] ?? 'smtp');
+@endphp
 <a href="{{ route('admin.settings.hub') }}" class="text-sm text-emerald-700">← Settings hub</a>
 
 <div class="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -10,50 +14,51 @@
   </div>
 </div>
 
-<form method="post" action="{{ route('admin.settings.smtp.update') }}" class="mt-6 max-w-2xl space-y-6">
+<form method="post" action="{{ route('admin.settings.smtp.update') }}" class="mt-6 max-w-2xl space-y-6" id="smtp-form">
   @csrf @method('PUT')
 
   <section class="rounded-xl border bg-white p-6 space-y-4">
     <label class="flex items-center gap-2 text-sm font-medium">
       <input type="checkbox" name="enabled" value="1" @checked(!empty($smtp['enabled']))>
-      Enable custom SMTP (override .env mail settings)
+      Enable custom mail settings (override .env)
     </label>
 
     <div>
-      <label class="text-sm font-medium">Mailer</label>
-      <select name="mailer" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
-        <option value="smtp" @selected(($smtp['mailer'] ?? 'smtp') === 'smtp')>SMTP</option>
-        <option value="sendmail" @selected(($smtp['mailer'] ?? '') === 'sendmail')>Sendmail</option>
-        <option value="log" @selected(($smtp['mailer'] ?? '') === 'log')>Log only (dev / debug)</option>
+      <label class="text-sm font-medium">Mailer / Provider</label>
+      <select name="mailer" id="mailer-select" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        @foreach($providers as $key => $p)
+          <option value="{{ $key }}" @selected($currentMailer === $key)>{{ $p['label'] }}</option>
+        @endforeach
       </select>
+      <p id="mailer-help" class="mt-2 text-xs text-slate-500">{{ $providers[$currentMailer]['help'] ?? '' }}</p>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2">
-      <div class="sm:col-span-2">
+    <div id="smtp-fields" class="grid gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2" data-field="host">
         <label class="text-sm font-medium">SMTP host</label>
-        <input name="host" value="{{ old('host', $smtp['host'] ?? '') }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" placeholder="smtp.gmail.com / smtp.hostinger.com">
+        <input name="host" id="field-host" value="{{ old('host', $smtp['host'] ?? '') }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" placeholder="smtp.example.com">
       </div>
-      <div>
+      <div data-field="port">
         <label class="text-sm font-medium">Port</label>
-        <input type="number" name="port" value="{{ old('port', $smtp['port'] ?? 587) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <input type="number" name="port" id="field-port" value="{{ old('port', $smtp['port'] ?? 587) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
         <p class="mt-1 text-[11px] text-slate-400">587 (TLS) · 465 (SSL) · 25 (none)</p>
       </div>
-      <div>
+      <div data-field="encryption">
         <label class="text-sm font-medium">Encryption</label>
-        <select name="encryption" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <select name="encryption" id="field-encryption" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
           @php $enc = old('encryption', $smtp['encryption'] ?? 'tls'); if ($enc === '') $enc = 'none'; @endphp
           <option value="tls" @selected($enc === 'tls')>TLS</option>
           <option value="ssl" @selected($enc === 'ssl')>SSL</option>
           <option value="none" @selected($enc === 'none')>None</option>
         </select>
       </div>
-      <div>
-        <label class="text-sm font-medium">Username</label>
-        <input name="username" value="{{ old('username', $smtp['username'] ?? '') }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" autocomplete="off">
+      <div data-field="username">
+        <label class="text-sm font-medium" id="label-username">Username</label>
+        <input name="username" id="field-username" value="{{ old('username', $smtp['username'] ?? '') }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" autocomplete="off">
       </div>
-      <div>
-        <label class="text-sm font-medium">Password</label>
-        <input type="password" name="password" value="" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" autocomplete="new-password" placeholder="{{ !empty($smtp['password_set']) ? '••••••••  (leave blank to keep)' : 'SMTP password' }}">
+      <div data-field="password">
+        <label class="text-sm font-medium" id="label-password">Password</label>
+        <input type="password" name="password" id="field-password" value="" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" autocomplete="new-password" placeholder="{{ !empty($smtp['password_set']) ? '••••••••  (leave blank to keep)' : '' }}">
         @if(!empty($smtp['password_set']))
           <p class="mt-1 text-[11px] text-slate-400">Password is saved. Leave blank to keep the current one.</p>
         @endif
@@ -75,7 +80,7 @@
     </div>
   </section>
 
-  <button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save SMTP settings</button>
+  <button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save mail settings</button>
 </form>
 
 <form method="post" action="{{ route('admin.settings.smtp.test') }}" class="mt-8 max-w-2xl rounded-xl border border-sky-100 bg-sky-50 p-6">
@@ -88,13 +93,101 @@
   </div>
 </form>
 
-<div class="mt-6 max-w-2xl rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-  <p class="font-medium text-slate-800">Hostinger tips</p>
-  <ul class="mt-1 list-inside list-disc space-y-0.5">
-    <li>Host: <code>smtp.hostinger.com</code></li>
-    <li>Port <strong>465</strong> + SSL, or <strong>587</strong> + TLS</li>
-    <li>Username = full mailbox email (e.g. <code>noreply@yourdomain.com</code>)</li>
-    <li>Use an email account created under Hostinger → Emails</li>
-  </ul>
+<div class="mt-6 max-w-2xl space-y-3 text-xs text-slate-600">
+  <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+    <p class="font-medium text-slate-800">Gmail</p>
+    <ul class="mt-1 list-inside list-disc space-y-0.5">
+      <li>Turn on <strong>2-Step Verification</strong></li>
+      <li>Create an <strong>App Password</strong> at <a class="text-emerald-700 underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a></li>
+      <li>Username = your full Gmail · Password = the 16-character app password</li>
+    </ul>
+  </div>
+  <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+    <p class="font-medium text-slate-800">Outlook / Microsoft 365</p>
+    <ul class="mt-1 list-inside list-disc space-y-0.5">
+      <li>Host is set automatically to <code>smtp.office365.com</code></li>
+      <li>Port <strong>587</strong> + TLS</li>
+      <li>Username = full Microsoft email address</li>
+    </ul>
+  </div>
+  <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+    <p class="font-medium text-slate-800">Resend</p>
+    <ul class="mt-1 list-inside list-disc space-y-0.5">
+      <li>Create an API key at <a class="text-emerald-700 underline" href="https://resend.com/api-keys" target="_blank" rel="noopener">resend.com/api-keys</a></li>
+      <li>Username is always <code>resend</code> · Password = API key (<code>re_…</code>)</li>
+      <li>Verify your sending domain in the Resend dashboard</li>
+    </ul>
+  </div>
+  <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+    <p class="font-medium text-slate-800">Hostinger</p>
+    <ul class="mt-1 list-inside list-disc space-y-0.5">
+      <li>Host: <code>smtp.hostinger.com</code> · Port <strong>465</strong> + SSL (or 587 + TLS)</li>
+      <li>Username = full mailbox email created under Hostinger → Emails</li>
+    </ul>
+  </div>
 </div>
+
+@push('scripts')
+<script>
+(function () {
+  var providers = @json($providers);
+  var select = document.getElementById('mailer-select');
+  var help = document.getElementById('mailer-help');
+  var host = document.getElementById('field-host');
+  var port = document.getElementById('field-port');
+  var enc = document.getElementById('field-encryption');
+  var user = document.getElementById('field-username');
+  var labelUser = document.getElementById('label-username');
+  var labelPass = document.getElementById('label-password');
+  var smtpFields = document.getElementById('smtp-fields');
+
+  function applyProvider(key, fillDefaults) {
+    var p = providers[key] || providers.smtp;
+    if (help) help.textContent = p.help || '';
+
+    var needsSmtp = !['sendmail', 'log'].includes(key);
+    if (smtpFields) smtpFields.style.display = needsSmtp ? '' : 'none';
+
+    if (labelUser) labelUser.textContent = p.username_hint ? ('Username — ' + p.username_hint) : 'Username';
+    if (labelPass) labelPass.textContent = p.password_hint ? ('Password — ' + p.password_hint) : 'Password';
+
+    if (!fillDefaults) return;
+
+    if (p.host) {
+      host.value = p.host;
+      host.readOnly = true;
+      host.classList.add('bg-slate-50');
+    } else if (key === 'smtp') {
+      host.readOnly = false;
+      host.classList.remove('bg-slate-50');
+    } else {
+      host.readOnly = false;
+      host.classList.remove('bg-slate-50');
+    }
+
+    if (p.port) port.value = p.port;
+    if (p.encryption) enc.value = p.encryption;
+
+    if (key === 'resend' && (!user.value || user.value === '')) {
+      user.value = 'resend';
+    }
+  }
+
+  if (select) {
+    select.addEventListener('change', function () {
+      applyProvider(select.value, true);
+    });
+    applyProvider(select.value, false);
+
+    // Lock host for preset providers on load
+    var p = providers[select.value];
+    if (p && p.host && host) {
+      host.readOnly = true;
+      host.classList.add('bg-slate-50');
+      if (!host.value) host.value = p.host;
+    }
+  }
+})();
+</script>
+@endpush
 @endsection
