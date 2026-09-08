@@ -1,5 +1,12 @@
 @extends('layouts.app')
-@section('title', 'CodeBazaar — Code Scripts & Plugins Marketplace')
+@php
+  $seo = \App\Support\Seo::make([
+    'title' => \App\Support\Seo::siteName().' — Code Scripts & Plugins Marketplace',
+    'description' => \App\Support\Seo::defaultDescription(),
+    'canonical' => url('/'),
+    'og_type' => 'website',
+  ]);
+@endphp
 @section('content')
 
 <section class="relative overflow-hidden rounded border border-slate-200 text-white shadow-sm" style="background:var(--cc-secondary)">
@@ -13,44 +20,17 @@
         </p>
         <form action="{{ route('search') }}" method="get" class="mt-6 flex max-w-xl flex-col gap-2 sm:flex-row">
             <input type="search" name="q" placeholder="e.g. admin dashboard, Laravel, WooCommerce…"
-                   class="h-11 flex-1 rounded border-0 px-4 text-[15px] text-slate-900 shadow-sm outline-none ring-0 focus:ring-2"
-                   style="--tw-ring-color:var(--cc-green)"
-                   value="{{ request('q') }}">
-            <button type="submit" class="h-11 shrink-0 rounded px-6 text-sm font-bold text-white"
-                    style="background:var(--cc-green)"
-                    onmouseover="this.style.background='var(--cc-green-hover)'"
-                    onmouseout="this.style.background='var(--cc-green)'">
-                {{ $hero['cta'] ?? 'Search' }}
-            </button>
+                   class="w-full rounded border-0 px-4 py-3 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[var(--cc-green)]">
+            <button type="submit" class="rounded px-5 py-3 text-sm font-semibold text-white" style="background:var(--cc-green)">Search</button>
         </form>
     </div>
 </section>
 
-{!! \App\Support\AdSlots::render('homepage_after_hero') !!}
-
-@if($categories->count())
-<section class="mt-7">
-    <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">Browse categories</h2>
-        <a href="{{ route('search') }}" class="text-sm font-medium hover:underline" style="color:var(--cc-green)">All items</a>
-    </div>
-    <div class="flex flex-wrap gap-2">
-        @foreach($categories as $cat)
-            <a href="{{ route('category', $cat->slug) }}"
-               class="inline-flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:border-[var(--cc-green)] hover:text-[var(--cc-green)]">
-                {{ $cat->name }}
-                <span class="text-[11px] font-normal text-slate-400">{{ $cat->items_count }}</span>
-            </a>
-        @endforeach
-    </div>
-</section>
-@endif
-
-@if($featured->count())
+@if(isset($featured) && $featured->count())
 <section class="mt-10">
     <div class="mb-4 flex items-end justify-between gap-3">
-        <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">Featured items</h2>
-        <a href="{{ route('search') }}" class="text-sm font-medium hover:underline" style="color:var(--cc-green)">View all</a>
+        <h2 class="text-lg font-bold text-slate-900">Featured items</h2>
+        <a href="{{ route('search') }}" class="text-sm font-medium text-[var(--cc-green)] hover:underline">Browse all</a>
     </div>
     <div class="cc-grid">
         @foreach($featured as $item)
@@ -60,72 +40,32 @@
 </section>
 @endif
 
-@if($popular->count())
+@if(isset($latest) && $latest->count())
 <section class="mt-10">
-    <div class="mb-4 flex items-end justify-between gap-3">
-        <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">Popular items</h2>
-        <a href="{{ route('search') }}" class="text-sm font-medium hover:underline" style="color:var(--cc-green)">View all</a>
-    </div>
+    <h2 class="mb-4 text-lg font-bold text-slate-900">Newest items</h2>
     <div class="cc-grid">
-        @foreach($popular as $item)
+        @foreach($latest as $item)
             @include('components.item-card', ['item' => $item])
         @endforeach
     </div>
 </section>
 @endif
 
-<section class="mt-10">
-    <div class="mb-4 flex items-end justify-between gap-3">
-        <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">Newest items</h2>
-        <a href="{{ route('search') }}" class="text-sm font-medium hover:underline" style="color:var(--cc-green)">View all</a>
+@if(isset($posts) && $posts->count())
+<section class="mt-12">
+    <div class="mb-4 flex items-end justify-between">
+        <h2 class="text-lg font-bold text-slate-900">From the blog</h2>
+        <a href="{{ route('blog.index') }}" class="text-sm font-medium text-[var(--cc-green)] hover:underline">View all</a>
     </div>
-    <div class="cc-grid">
-        @forelse($latest as $item)
-            @include('components.item-card', ['item' => $item])
-        @empty
-            <p class="col-span-full text-sm text-slate-500">No products yet. Add some from Admin.</p>
-        @endforelse
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        @foreach($posts as $post)
+            <a href="{{ route('blog.show', $post->slug) }}" class="rounded border border-slate-200 bg-white p-4 shadow-sm hover:border-[var(--cc-green)]">
+                <p class="font-semibold text-slate-900">{{ $post->title }}</p>
+                <p class="mt-1 line-clamp-2 text-sm text-slate-500">{{ $post->excerpt ?: \Illuminate\Support\Str::limit(strip_tags($post->content), 100) }}</p>
+            </a>
+        @endforeach
     </div>
 </section>
-
-{!! \App\Support\AdSlots::render('homepage_before_blog') !!}
-
-<section class="mt-12 border-t border-slate-200 pt-10">
-    <div class="mb-4 flex items-end justify-between gap-3">
-        <h2 class="text-[15px] font-bold text-slate-900 sm:text-base">From the blog</h2>
-        <a href="{{ route('blog.index') }}" class="text-sm font-medium hover:underline" style="color:var(--cc-green)">All posts</a>
-    </div>
-    @if($blog->count())
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @foreach($blog as $post)
-                <article class="overflow-hidden rounded border border-slate-200 bg-white shadow-sm transition hover:border-[var(--cc-green)] hover:shadow-md">
-                    <a href="{{ route('blog.show', $post->slug) }}" class="block">
-                        @if(!empty($post->cover_url))
-                            <div class="aspect-[16/9] overflow-hidden bg-slate-100">
-                                <img src="{{ $post->cover_url }}" alt="" class="h-full w-full object-cover" loading="lazy">
-                            </div>
-                        @else
-                            <div class="flex aspect-[16/9] items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-xs font-medium text-slate-400">Blog</div>
-                        @endif
-                        <div class="p-4">
-                            <h3 class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $post->title }}</h3>
-                            @if($post->excerpt)
-                                <p class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{{ $post->excerpt }}</p>
-                            @endif
-                            <p class="mt-2 text-[11px] text-slate-400">
-                                {{ optional($post->published_at)->format('M j, Y') ?: $post->created_at?->format('M j, Y') }}
-                            </p>
-                        </div>
-                    </a>
-                </article>
-            @endforeach
-        </div>
-    @else
-        <div class="rounded border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-            <p class="text-sm text-slate-500">No blog posts yet.</p>
-            <a href="{{ route('admin.blog.index') }}" class="mt-2 inline-block text-sm font-medium hover:underline" style="color:var(--cc-green)">Publish a post in Admin → Blog</a>
-        </div>
-    @endif
-</section>
+@endif
 
 @endsection
