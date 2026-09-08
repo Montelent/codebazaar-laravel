@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SchemaSettingsController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SettingsHubController;
+use App\Http\Controllers\Admin\SmtpSettingsController;
 use App\Http\Controllers\Admin\StorageSettingsController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\TagController;
@@ -151,6 +152,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/settings/payments', [PaymentSettingsController::class, 'edit'])->name('settings.payments');
     Route::put('/settings/payments', [PaymentSettingsController::class, 'update'])->name('settings.payments.update');
+    Route::get('/settings/smtp', [SmtpSettingsController::class, 'edit'])->name('settings.smtp');
+    Route::put('/settings/smtp', [SmtpSettingsController::class, 'update'])->name('settings.smtp.update');
+    Route::post('/settings/smtp/test', [SmtpSettingsController::class, 'test'])->name('settings.smtp.test');
     Route::get('/settings/storage', [StorageSettingsController::class, 'edit'])->name('settings.storage');
     Route::put('/settings/storage', [StorageSettingsController::class, 'update'])->name('settings.storage.update');
     Route::get('/settings/navigation', [NavigationSettingsController::class, 'edit'])->name('settings.navigation');
