@@ -13,6 +13,28 @@
 
 After install, use **Admin → System tools** to run migrations or clear caches without SSH.
 
+### Security after install
+
+Once the site is installed, **`/install` returns a normal 404**. There is no public message and no hint how to reinstall. That is intentional so scanners and attackers cannot confirm an installer exists or learn how to reset it.
+
+### Reinstall (private — SSH / File Manager only)
+
+Only do this if you intentionally want a **fresh** web install. This does **not** wipe the database by itself.
+
+1. Via SSH or File Manager, delete the lock file:
+
+   ```bash
+   rm storage/installed
+   ```
+
+   (Path may be `storage/app/installed` on some layouts — delete the file named `installed` under `storage/`.)
+
+2. Optionally back up and remove or empty `.env` if you want the wizard to recreate it.
+3. Open `/install` again and complete the wizard.
+4. Prefer restoring from a DB backup if you need a clean schema; or drop tables carefully before re-running migrations.
+
+Never publish these steps on the live site or in customer-facing UI.
+
 ## Recommended: merge into a fresh Laravel 11 app
 
 This repository contains the **CodeBazaar application layer** (models, controllers, views, migrations, routes). For a complete framework skeleton:
