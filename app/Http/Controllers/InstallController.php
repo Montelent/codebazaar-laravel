@@ -11,8 +11,9 @@ class InstallController extends Controller
     public function index()
     {
         if (Installer::isInstalled()) {
-            return redirect('/');
+            abort(404);
         }
+
         return redirect()->route('install.requirements');
     }
 
@@ -20,6 +21,7 @@ class InstallController extends Controller
     {
         $checks = Installer::requirements();
         $passed = Installer::allRequirementsPassed($checks);
+
         return view('install.requirements', compact('checks', 'passed'));
     }
 
@@ -28,6 +30,7 @@ class InstallController extends Controller
         if (! Installer::allRequirementsPassed(Installer::requirements())) {
             return redirect()->route('install.requirements');
         }
+
         return view('install.database');
     }
 
@@ -54,10 +57,11 @@ class InstallController extends Controller
         ]);
 
         if (! $test['ok']) {
-            return back()->withInput()->with('error', 'Database connection failed: ' . $test['message']);
+            return back()->withInput()->with('error', 'Database connection failed: '.$test['message']);
         }
 
         $request->session()->put('install.db', $data);
+
         return redirect()->route('install.admin');
     }
 
@@ -66,6 +70,7 @@ class InstallController extends Controller
         if (! session('install.db')) {
             return redirect()->route('install.database');
         }
+
         return view('install.admin');
     }
 
@@ -134,7 +139,7 @@ class InstallController extends Controller
                 'url' => $db['app_url'],
             ]);
         } catch (\Throwable $e) {
-            return back()->withInput()->with('error', 'Install failed: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Install failed: '.$e->getMessage());
         }
     }
 }
