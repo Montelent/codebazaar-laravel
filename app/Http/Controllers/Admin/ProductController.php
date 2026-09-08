@@ -13,11 +13,54 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = Item::with('category')->orderByDesc('created_at')->paginate(30);
+        $q = Item::with('category');
 
-        return view('admin.products.index', compact('items'));
+        if ($request->filled('q')) {
+            $term = trim((string) $request->input('q'));
+            $q->where(function ($w) use ($term) {
+                $w->where('title', 'like', "%{$term}%")
+                    ->orWhere('slug', 'like', "%{$term}%")
+                    ->orWhere('id', is_numeric($term) ? (int) $term : 0);
+            });
+        }
+
+        if ($request->filled('category_id')) {
+            $q->where('category_id', (int) $request->input('category_id'));
+        }
+
+        if ($request->filled('status')) {
+            $q->where('status', $request->input('status'));
+        }
+
+        if ($request->filled('price')) {
+            if ($request->input('price') === 'free') {
+                $q->where(function ($w) {
+                    $w->where('is_free', true)->orWhere('regular_price', '<=', 0);
+                });
+            } elseif ($request->input('price') === 'paid') {
+                $q->where(function ($w) {
+                    $w->where('is_free', false)->where('regular_price', '>', 0);
+                });
+            }
+        }
+
+        if ($request->filled('featured')) {
+            $q->where('is_featured', $request->boolean('featured'));
+        }
+
+        if ($request->filled('from')) {
+            $q->whereDate('created_at', '>=', $request->input('from'));
+        }
+        if ($request->filled('to')) {
+            $q->whereDate('created_at', '<=', $request->input('to'));
+        }
+
+        $items = $q->orderByDesc('created_at')->paginate(30)->withQueryString();
+        $categories = Category::orderBy('name')->get(['id', 'name', 'parent_id']);
+
+        return view('admin.products.index', compact('items', 'categories'));
     }
 
     public function create()
@@ -275,7 +318,6 @@ class ProductController extends Controller
             unset($data['download_files']);
         }
 
-        // Only persist SEO columns after migration
         foreach (array_keys(Seo::rules()) as $seoKey) {
             if (! Schema::hasColumn('items', $seoKey)) {
                 unset($data[$seoKey]);
