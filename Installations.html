@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeBazaar — Installation (CodeCanyon)</title>
+  <style>
+    :root { --brand: #82b440; --ink: #0f172a; --muted: #64748b; --bg: #f8fafc; --card: #fff; --line: #e2e8f0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, Segoe UI, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+    h1 { font-size: 1.75rem; margin: 0 0 8px; }
+    h2 { font-size: 1.25rem; margin: 36px 0 12px; border-bottom: 2px solid var(--brand); padding-bottom: 6px; }
+    h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+    p, li { color: #334155; }
+    .lead { color: var(--muted); font-size: 1.05rem; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin: 16px 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 10px; overflow-x: auto; }
+    .ok { color: #047857; font-weight: 600; }
+    .warn { color: #b45309; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; }
+    th { background: #f1f5f9; }
+    a { color: var(--brand); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CodeBazaar — Installation Guide</h1>
+    <p class="lead">For buyers of the full CodeCanyon package (includes application code and, where provided, Composer <code>vendor/</code> dependencies).</p>
+
+    <div class="card">
+      <strong>Quick path:</strong> Upload → point domain to <code>public/</code> → open <code>/install</code> → activate license in Admin → configure payments & SMTP.
+    </div>
+
+    <h2>1. Server requirements</h2>
+    <ul>
+      <li>PHP <strong>8.2+</strong> (8.3 recommended)</li>
+      <li>MySQL / MariaDB</li>
+      <li>Extensions: BCMath, Ctype, cURL, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML</li>
+      <li>Apache with <code>mod_rewrite</code> or Nginx equivalent</li>
+      <li>Writable <code>storage/</code> and <code>bootstrap/cache/</code></li>
+    </ul>
+
+    <h2>2. Upload the package</h2>
+    <ol>
+      <li>Download the ZIP from CodeCanyon (Download → All files & documentation).</li>
+      <li>Extract on your computer, then upload the project folder to your host (e.g. <code>public_html/codebazaar/</code>) via FTP/SFTP or File Manager.</li>
+      <li>Prefer setting the domain <strong>document root</strong> to the <code>public/</code> directory inside the project.</li>
+    </ol>
+
+    <h2>3. Web installer</h2>
+    <ol>
+      <li>Visit <code>https://your-domain.com/install</code></li>
+      <li>Pass the requirements check</li>
+      <li>Enter database credentials and site URL (the installer writes <code>.env</code>)</li>
+      <li>Create your admin account</li>
+      <li>Log in at <code>/login</code></li>
+    </ol>
+    <p class="warn">After a successful install, <code>/install</code> is disabled (404) for security.</p>
+
+    <h2>4. License activation (required)</h2>
+    <p>Most Admin features stay locked until you activate:</p>
+    <ol>
+      <li>Open <strong>Admin → License activation</strong></li>
+      <li>Paste your <strong>Envato purchase code</strong> (CodeCanyon → Downloads → License certificate / purchase code)</li>
+      <li>Submit — the license is bound to the current domain</li>
+    </ol>
+    <div class="card">
+      <span class="ok">While locked</span> you can still use <strong>Basic settings</strong> and <strong>Blog</strong> so you can brand the site and publish posts.
+    </div>
+
+    <h2>5. Recommended configuration</h2>
+    <h3>SMTP / email</h3>
+    <p>Admin → Settings → SMTP. Choose Gmail, Outlook, Resend, Hostinger, or custom SMTP. Send a test email.</p>
+    <h3>Payments</h3>
+    <p>Admin → Settings → Payments. Enable Paystack, Monnify, Stripe, crypto wallets, etc. as needed.</p>
+    <h3>Storage</h3>
+    <p>Admin → Settings → Storage for local, S3, Backblaze, or iDrive uploads.</p>
+    <h3>Cron job</h3>
+    <pre>* * * * * cd /path/to/codebazaar && php artisan schedule:run >> /dev/null 2>&1</pre>
+
+    <h2>6. Install with Composer (developers)</h2>
+    <p>If your package was shipped without <code>vendor/</code>, or you prefer a clean install:</p>
+    <pre>composer install --no-dev --optimize-autoloader
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --force
+php artisan storage:link</pre>
+
+    <h2>7. Updating</h2>
+    <ol>
+      <li>Back up files + database</li>
+      <li>Upload changed files (or <code>git pull</code> if you deploy from Git)</li>
+      <li>Run migrations from Admin → System tools (or SSH: <code>php artisan migrate --force</code>)</li>
+      <li>Clear caches from System tools</li>
+    </ol>
+
+    <h2>8. Troubleshooting</h2>
+    <table>
+      <tr><th>Problem</th><th>What to try</th></tr>
+      <tr><td>Blank page / 500</td><td>Check <code>storage/logs/laravel.log</code>; ensure <code>APP_KEY</code> is set; clear caches</td></tr>
+      <tr><td>404 on all pages</td><td>Document root → <code>public/</code>; enable rewrite</td></tr>
+      <tr><td>Admin features locked</td><td>Complete License activation with purchase code</td></tr>
+      <tr><td>Composer PHP mismatch</td><td>Switch host PHP version to match the package (8.2+)</td></tr>
+    </table>
+
+    <h2>9. Support</h2>
+    <p>Use the CodeCanyon item support tab or the contact method listed in the item description. Include your purchase code, domain, and PHP version when asking for help.</p>
+
+    <p style="margin-top:48px;font-size:12px;color:#94a3b8">© CodeBazaar — CodeCanyon installation guide. Do not redistribute this package without a valid license.</p>
+  </div>
+</body>
+</html>
