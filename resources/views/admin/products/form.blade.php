@@ -45,6 +45,60 @@
     <textarea name="features_text" rows="5" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">{{ $featuresText }}</textarea></div>
 </section>
 
+<section class="rounded-xl border bg-white p-6 shadow-sm space-y-4">
+  <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Pricing</h2>
+  <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_free" value="1" @checked(old('is_free', $item->is_free))> Free product</label>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div><label class="text-sm">Regular license price</label>
+      <input type="number" step="0.01" name="regular_price" value="{{ old('regular_price', $item->regular_price ?? 49) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm"></div>
+    <div><label class="text-sm">Extended license price</label>
+      <input type="number" step="0.01" name="extended_price" value="{{ old('extended_price', $item->extended_price ?? 249) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm"></div>
+    <div><label class="text-sm">Sale regular (optional)</label>
+      <input type="number" step="0.01" name="sale_price_regular" value="{{ old('sale_price_regular', $item->sale_price_regular) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm"></div>
+    <div><label class="text-sm">Sale extended (optional)</label>
+      <input type="number" step="0.01" name="sale_price_extended" value="{{ old('sale_price_extended', $item->sale_price_extended) }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm"></div>
+  </div>
+</section>
+
+{{-- Media section restored from complete form via partial includes to keep this file manageable --}}
+@include('admin.products.partials.media')
+
+<section class="rounded-xl border bg-white p-6 shadow-sm space-y-4">
+  <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Category, tags & attributes</h2>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label class="text-sm font-medium">Parent category</label>
+      <select id="parent_category" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <option value="">— Select —</option>
+        @foreach($parents as $p)
+          <option value="{{ $p->id }}" @selected((string)old('parent_hint', $selectedParentId) === (string)$p->id)>{{ $p->name }}</option>
+        @endforeach
+      </select>
+    </div>
+    <div>
+      <label class="text-sm font-medium">Sub-category <span class="font-normal text-slate-400">(optional)</span></label>
+      <select id="sub_category" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+        <option value="">— None (use parent) —</option>
+      </select>
+    </div>
+  </div>
+  <input type="hidden" name="category_id" id="category_id" value="{{ old('category_id', $item->category_id) }}">
+  <div>
+    <label class="text-sm font-medium">Tags (comma-separated)</label>
+    <input name="tags_text" value="{{ $tagsText }}" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm">
+  </div>
+  <div>
+    <label class="text-sm font-medium">Attributes</label>
+    <div id="attr-picker" class="mt-3 space-y-4">
+      <p class="text-sm text-slate-400">Select a category to load attributes.</p>
+    </div>
+  </div>
+  <details class="rounded-lg border border-slate-200 p-3">
+    <summary class="cursor-pointer text-sm font-medium text-slate-600">Advanced: attributes JSON</summary>
+    <textarea name="attributes_json" id="attributes_json" rows="6" class="mt-2 w-full rounded-lg border px-3 py-2 font-mono text-xs">{{ old('attributes_json', !empty($savedAttrs) ? json_encode($savedAttrs, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) : '') }}</textarea>
+  </details>
+</section>
+
 @include('admin.products.partials.changelog')
 
 <section class="rounded-xl border bg-white p-6 shadow-sm space-y-3">
@@ -60,7 +114,5 @@
 <button class="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white">Save product</button>
 </form>
 
-<p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-  Full media / category / attributes editor is loading from the previous complete form file. If pricing media sections are missing after deploy, run: <code class="text-xs">git checkout f9a38c7e -- resources/views/admin/products/form.blade.php</code> then re-add <code class="text-xs">@include('admin.products.partials.changelog')</code> before Status.
-</p>
+@include('admin.products.partials.form-scripts')
 @endsection
