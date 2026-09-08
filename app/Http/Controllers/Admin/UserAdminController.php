@@ -9,10 +9,74 @@ use Illuminate\Support\Facades\Hash;
 
 class UserAdminController extends Controller
 {
-    public function index()
+    /** All users (legacy) or filtered via query. */
+    public function index(Request $request)
     {
-        $users = User::orderByDesc('created_at')->paginate(40);
-        return view('admin.users.index', compact('users'));
+        return $this->listUsers($request, 'all');
+    }
+
+    /** Buyers / regular members only. */
+    public function members(Request $request)
+    {
+        return $this->listUsers($request, 'members');
+    }
+
+    /** Admins + authors. */
+    public function staff(Request $request)
+    {
+        return $this->listUsers($request, 'staff');
+    }
+
+    protected function listUsers(Request $request, string $scope)
+    {
+        $q = User::query();
+
+        if ($scope === 'members') {
+            $q->where('role', 'buyer');
+        } elseif ($scope === 'staff') {
+            $q->whereIn('role', ['admin', 'author']);
+        }
+
+        if ($request->filled('q')) {
+            $term = trim((string) $request->input('q'));
+            $q->where(function ($w) use ($term) {
+                $w->where('name', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%")
+                    ->orWhere('username', 'like', "%{$term}%");
+            });
+        }
+
+        if ($request->filled('role') && $scope !== 'members') {
+            $role = $request->input('role');
+            if (in_array($role, ['admin', 'author', 'buyer'], true)) {
+                $q->where('role', $role);
+            }
+        }
+
+        if ($request->filled('newsletter')) {
+            $q->where('newsletter', $request->boolean('newsletter'));
+        }
+
+        if ($request->filled('from')) {
+            $q->whereDate('created_at', '>=', $request->input('from'));
+        }
+        if ($request->filled('to')) {
+            $q->whereDate('created_at', '<=', $request->input('to'));
+        }
+
+        $users = $q->orderByDesc('created_at')->paginate(40)->withQueryString();
+
+        $title = match ($scope) {
+            'members' => 'Users (Members)',
+            'staff' => 'Admins / Authors',
+            default => 'All users',
+        };
+
+        return view('admin.users.index', [
+            'users' => $users,
+            'scope' => $scope,
+            'pageTitle' => $title,
+        ]);
     }
 
     public function create()
@@ -33,7 +97,13 @@ class UserAdminController extends Controller
         $data['password'] = Hash::make($data['password']);
         $data['newsletter'] = $request->boolean('newsletter');
         User::create($data);
-        return redirect()->route('admin.users.index')->with('success', 'User created.');
+
+        $redirect = match ($data['role']) {
+            'buyer' => route('admin.members.index'),
+            default => route('admin.staff.index'),
+        };
+
+        return redirect($redirect)->with('success', 'User created.');
     }
 
     public function edit(User $user)
@@ -58,7 +128,13 @@ class UserAdminController extends Controller
         }
         $data['newsletter'] = $request->boolean('newsletter');
         $user->update($data);
-        return redirect()->route('admin.users.index')->with('success', 'User updated.');
+
+        $redirect = match ($user->role) {
+            'buyer' => route('admin.members.index'),
+            default => route('admin.staff.index'),
+        };
+
+        return redirect($redirect)->with('success', 'User updated.');
     }
 
     public function destroy(User $user)
@@ -67,6 +143,7 @@ class UserAdminController extends Controller
             return back()->with('error', 'You cannot delete yourself.');
         }
         $user->delete();
+
         return back()->with('success', 'User deleted.');
     }
 }
