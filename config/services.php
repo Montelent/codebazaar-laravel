@@ -22,4 +22,16 @@ return [
         'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
     ],
+
+    /*
+    | CodeCanyon / Envato product activation
+    | - token: Envato API personal token (author account) with "View and search Envato sites" + sales
+    | - item_id: numeric CodeCanyon item ID (optional but recommended)
+    | - licensing_disabled: set true or DISABLE_PRODUCT_LICENSE=true for unrestricted author builds
+    */
+    'envato' => [
+        'token' => env('ENVATO_PERSONAL_TOKEN'),
+        'item_id' => env('ENVATO_ITEM_ID'),
+        'licensing_disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
+    ],
 ];
