@@ -1,5 +1,6 @@
 {
     "name": "codebazaar/marketplace",
+    "version": "1.0.0",
     "type": "project",
     "description": "CodeBazaar — CodeCanyon-style digital marketplace built with Laravel",
     "keywords": ["laravel", "marketplace", "digital-products", "codebazaar"],
