@@ -23,23 +23,28 @@ return [
         'secret' => env('STRIPE_SECRET'),
     ],
 
+    /*
+    | Envato / CodeCanyon purchase-code verification (author personal token required for live checks)
+    | Get token: https://build.envato.com/create-token/
+    | Scopes needed: View and search Envato sites, View your sales
+    */
     'envato' => [
         'token' => env('ENVATO_PERSONAL_TOKEN'),
         'item_id' => env('ENVATO_ITEM_ID'),
         'licensing_disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
+        // When true, UUID codes are rejected unless Envato API confirms the sale
+        'require_live' => (bool) env('ENVATO_REQUIRE_LIVE', true),
     ],
 
     /*
-    | JigSource.store license verification
-    | - verify_url: POST endpoint on your store that validates a license key
-    | - api_key: optional shared secret sent as Bearer / X-Api-Key
-    | - item_id: product id on jigsource for this script
-    | - license_secret: HMAC secret to issue/verify JS1.*.* signed keys offline
+    | JigSource.store license verification (live)
+    | Default endpoint: https://jigsource.store/api/purchases/validation
     */
     'jigsource' => [
-        'verify_url' => env('JIGSOURCE_VERIFY_URL', 'https://jigsource.store/api/license/verify'),
+        'verify_url' => env('JIGSOURCE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
         'api_key' => env('JIGSOURCE_API_KEY'),
         'item_id' => env('JIGSOURCE_ITEM_ID'),
         'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
+        'product_slug' => env('JIGSOURCE_PRODUCT', 'codebazaar'),
     ],
 ];
