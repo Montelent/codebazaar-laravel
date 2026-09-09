@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 /**
- * Product activation for commercial installs.
+ * Product activation for commercial installs (live verification for sales).
  *
  * Supported unlock methods (same input field):
  * 1) Author master passphrase (hash-only in source)
- * 2) Envato / CodeCanyon purchase code
- * 3) JigSource.store license key (API and/or signed key)
+ * 2) Envato / CodeCanyon purchase code — live API when token is set
+ * 3) JigSource.store license / purchase code — live API + optional signed JS1 keys
  */
 class ProductActivation
 {
@@ -33,6 +33,17 @@ class ProductActivation
 
         if (! is_array($data)) {
             $data = [];
+        }
+
+        // Author override
+        if ((bool) config('services.envato.licensing_disabled', false)) {
+            return [
+                'active' => true,
+                'locked' => false,
+                'type' => 'disabled',
+                'domain' => self::currentDomain(),
+                'source' => 'DISABLE_PRODUCT_LICENSE',
+            ];
         }
 
         $active = ! empty($data['active']);
@@ -92,7 +103,7 @@ class ProductActivation
             return ['ok' => false, 'message' => 'Please enter a purchase code or license key.'];
         }
 
-        // 1) Author master
+        // 1) Author master (private — never document for buyers)
         $attempt = hash('sha256', 'cbz-master-v1|'.$code);
         if (hash_equals(self::MASTER_KEY_HASH, $attempt)) {
             self::persist([
@@ -108,21 +119,20 @@ class ProductActivation
             return ['ok' => true, 'message' => 'Author master key accepted. Product unlocked permanently on this install.', 'type' => 'master'];
         }
 
-        // 2) JigSource.store (signed key or API)
+        // 2) JigSource (signed key or API) — prefer when it looks like a JS key
         if (self::looksLikeJigsourceKey($code)) {
             $js = self::activateJigsource($code);
             if ($js['ok'] || ($js['hard_fail'] ?? false)) {
                 return $js;
             }
-            // soft fail → try Envato next
         }
 
-        // 3) Envato UUID purchase code
+        // 3) Envato UUID purchase code — always live when require_live is on
         if (preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $code)) {
             return self::activateEnvato($code);
         }
 
-        // 4) Any other string: try JigSource API first, then friendly error
+        // 4) Any other string → JigSource API
         $js = self::activateJigsource($code);
         if ($js['ok']) {
             return $js;
@@ -136,12 +146,10 @@ class ProductActivation
 
     protected static function looksLikeJigsourceKey(string $code): bool
     {
-        // Signed format: JS1.{base64url_payload}.{signature}
         if (preg_match('/^JS1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/', $code)) {
             return true;
         }
 
-        // Prefixed keys from store
         if (preg_match('/^(JS|JIG|JIGSOURCE)[-_]/i', $code)) {
             return true;
         }
@@ -156,15 +164,13 @@ class ProductActivation
     {
         $domain = self::currentDomain();
 
-        // A) Local verify of signed keys (no network) — secret shared with jigsource.store
+        // A) Offline signed keys (optional — only if secret is present on this install)
         if (preg_match('/^JS1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/', $code, $m)) {
             $payloadB64 = $m[1];
             $sig = $m[2];
-            $secret = (string) config('services.jigsource.license_secret', env('JIGSOURCE_LICENSE_SECRET', ''));
+            $secret = (string) config('services.jigsource.license_secret', '');
 
-            if ($secret === '') {
-                // Fall through to API if secret not on this install
-            } else {
+            if ($secret !== '') {
                 $expected = self::base64UrlEncode(hash_hmac('sha256', $payloadB64, $secret, true));
                 if (! hash_equals($expected, $sig)) {
                     return ['ok' => false, 'message' => 'Invalid JigSource license signature.', 'hard_fail' => true];
@@ -176,7 +182,7 @@ class ProductActivation
                     return ['ok' => false, 'message' => 'Invalid JigSource license payload.', 'hard_fail' => true];
                 }
 
-                $itemId = (string) config('services.jigsource.item_id', env('JIGSOURCE_ITEM_ID', ''));
+                $itemId = (string) config('services.jigsource.item_id', '');
                 if ($itemId !== '' && ! empty($payload['item_id']) && (string) $payload['item_id'] !== $itemId) {
                     return ['ok' => false, 'message' => 'This JigSource license is for a different product.', 'hard_fail' => true];
                 }
@@ -185,7 +191,6 @@ class ProductActivation
                     return ['ok' => false, 'message' => 'This JigSource license has expired.', 'hard_fail' => true];
                 }
 
-                // Optional domain lock embedded at issue time
                 if (! empty($payload['domain']) && strtolower((string) $payload['domain']) !== $domain) {
                     return ['ok' => false, 'message' => 'This JigSource license is locked to '.$payload['domain'].'.', 'hard_fail' => true];
                 }
@@ -200,6 +205,7 @@ class ProductActivation
                     'item_id' => $payload['item_id'] ?? null,
                     'source' => 'jigsource_signed',
                     'activated_at' => now()->toIso8601String(),
+                    'verified_via' => 'jigsource_signed',
                 ]);
 
                 return [
@@ -210,17 +216,28 @@ class ProductActivation
             }
         }
 
-        // B) Remote API on jigsource.store
-        $apiUrl = rtrim((string) config('services.jigsource.verify_url', env('JIGSOURCE_VERIFY_URL', 'https://jigsource.store/api/license/verify')), '/');
-        $apiKey = (string) config('services.jigsource.api_key', env('JIGSOURCE_API_KEY', ''));
-        $itemId = (string) config('services.jigsource.item_id', env('JIGSOURCE_ITEM_ID', ''));
+        // B) Live API — https://jigsource.store/api/purchases/validation
+        $apiUrl = rtrim((string) config('services.jigsource.verify_url', 'https://jigsource.store/api/purchases/validation'), '/');
+        $apiKey = (string) config('services.jigsource.api_key', '');
+        $itemId = (string) config('services.jigsource.item_id', '');
+        $product = (string) config('services.jigsource.product_slug', 'codebazaar');
 
         if ($apiUrl === '') {
             return ['ok' => false, 'message' => 'JigSource verification is not configured (missing verify URL).'];
         }
 
+        $payload = [
+            'license_key' => $code,
+            'purchase_code' => $code,
+            'code' => $code,
+            'domain' => $domain,
+            'item_id' => $itemId !== '' ? $itemId : null,
+            'product' => $product,
+            'product_slug' => $product,
+        ];
+
         try {
-            $request = Http::acceptJson()->timeout(20)->asJson();
+            $request = Http::acceptJson()->timeout(25)->asJson();
             if ($apiKey !== '') {
                 $request = $request->withHeaders([
                     'X-Api-Key' => $apiKey,
@@ -228,12 +245,7 @@ class ProductActivation
                 ]);
             }
 
-            $response = $request->post($apiUrl, [
-                'license_key' => $code,
-                'domain' => $domain,
-                'item_id' => $itemId ?: null,
-                'product' => 'codebazaar',
-            ]);
+            $response = $request->post($apiUrl, $payload);
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => 'Could not reach JigSource license server: '.$e->getMessage()];
         }
@@ -245,18 +257,39 @@ class ProductActivation
         if (! $response->successful()) {
             $msg = data_get($response->json(), 'message')
                 ?: data_get($response->json(), 'error')
+                ?: data_get($response->json(), 'errors.0')
                 ?: ('JigSource API error (HTTP '.$response->status().')');
 
-            return ['ok' => false, 'message' => $msg];
+            return ['ok' => false, 'message' => is_string($msg) ? $msg : 'JigSource rejected this license key.'];
         }
 
         $body = $response->json() ?: [];
-        $valid = (bool) (data_get($body, 'valid') ?? data_get($body, 'success') ?? data_get($body, 'active') ?? false);
+        $valid = (bool) (
+            data_get($body, 'valid')
+            ?? data_get($body, 'success')
+            ?? data_get($body, 'active')
+            ?? data_get($body, 'data.valid')
+            ?? data_get($body, 'data.success')
+            ?? false
+        );
+
+        // Some APIs return 200 with { status: "valid" }
+        if (! $valid) {
+            $status = strtolower((string) (data_get($body, 'status') ?? data_get($body, 'data.status') ?? ''));
+            if (in_array($status, ['valid', 'active', 'ok', 'success'], true)) {
+                $valid = true;
+            }
+        }
 
         if (! $valid) {
             return [
                 'ok' => false,
-                'message' => (string) (data_get($body, 'message') ?: 'JigSource rejected this license key.'),
+                'message' => (string) (
+                    data_get($body, 'message')
+                    ?: data_get($body, 'error')
+                    ?: data_get($body, 'data.message')
+                    ?: 'JigSource rejected this license key.'
+                ),
             ];
         }
 
@@ -266,10 +299,14 @@ class ProductActivation
             'domain' => $domain,
             'code_hint' => Str::mask($code, '*', 4, max(0, strlen($code) - 8)),
             'code_hash' => hash('sha256', $code),
-            'buyer' => data_get($body, 'buyer') ?: data_get($body, 'email'),
-            'item_id' => data_get($body, 'item_id') ?: $itemId,
+            'buyer' => data_get($body, 'buyer')
+                ?: data_get($body, 'email')
+                ?: data_get($body, 'data.buyer')
+                ?: data_get($body, 'data.email'),
+            'item_id' => data_get($body, 'item_id') ?: data_get($body, 'data.item_id') ?: $itemId,
             'source' => 'jigsource_api',
             'activated_at' => now()->toIso8601String(),
+            'verified_via' => 'jigsource_api',
         ]);
 
         return [
@@ -280,14 +317,25 @@ class ProductActivation
     }
 
     /**
+     * Live Envato verification only (format-only disabled when ENVATO_REQUIRE_LIVE=true).
+     *
      * @return array{ok:bool,message:string,type?:string}
      */
     protected static function activateEnvato(string $code): array
     {
-        $token = (string) config('services.envato.token', env('ENVATO_PERSONAL_TOKEN', ''));
-        $itemId = (string) config('services.envato.item_id', env('ENVATO_ITEM_ID', ''));
+        $token = (string) config('services.envato.token', '');
+        $itemId = (string) config('services.envato.item_id', '');
+        $requireLive = (bool) config('services.envato.require_live', true);
 
         if ($token === '') {
+            if ($requireLive) {
+                return [
+                    'ok' => false,
+                    'message' => 'Live Envato verification is required. The seller has not configured ENVATO_PERSONAL_TOKEN on this product build, or set ENVATO_REQUIRE_LIVE=false for testing only.',
+                ];
+            }
+
+            // Testing / author debug only
             self::persist([
                 'active' => true,
                 'type' => 'envato',
@@ -303,7 +351,7 @@ class ProductActivation
 
             return [
                 'ok' => true,
-                'message' => 'Envato-style code saved and bound to '.self::currentDomain().'. (Set ENVATO_PERSONAL_TOKEN for live verification.)',
+                'message' => 'Envato-style code saved (format-only / testing). Set ENVATO_PERSONAL_TOKEN for live verification.',
                 'type' => 'envato',
             ];
         }
@@ -311,7 +359,7 @@ class ProductActivation
         try {
             $response = Http::withToken($token)
                 ->acceptJson()
-                ->timeout(20)
+                ->timeout(25)
                 ->get('https://api.envato.com/v3/market/author/sale', [
                     'code' => $code,
                 ]);
@@ -320,7 +368,11 @@ class ProductActivation
         }
 
         if ($response->status() === 404) {
-            return ['ok' => false, 'message' => 'Envato purchase code not found.'];
+            return ['ok' => false, 'message' => 'Envato purchase code not found or invalid.'];
+        }
+
+        if ($response->status() === 401 || $response->status() === 403) {
+            return ['ok' => false, 'message' => 'Envato API authentication failed. Check ENVATO_PERSONAL_TOKEN scopes (View your sales).'];
         }
 
         if (! $response->successful()) {
@@ -343,6 +395,7 @@ class ProductActivation
             'buyer' => data_get($sale, 'buyer') ?: data_get($sale, 'buyer_username'),
             'item_id' => $saleItemId ?: $itemId,
             'item_name' => data_get($sale, 'item.name'),
+            'license' => data_get($sale, 'license'),
             'source' => 'envato_api',
             'activated_at' => now()->toIso8601String(),
             'verified_via' => 'envato_api',
@@ -428,13 +481,12 @@ class ProductActivation
 
     /**
      * Helper for jigsource.store: generate a signed license key.
-     * Use the same JIGSOURCE_LICENSE_SECRET on both sites.
      *
      * @param  array{item_id?:string|int,email?:string,buyer?:string,domain?:string,exp?:int}  $claims
      */
     public static function issueJigsourceSignedKey(array $claims, ?string $secret = null): string
     {
-        $secret = $secret ?: (string) config('services.jigsource.license_secret', env('JIGSOURCE_LICENSE_SECRET', ''));
+        $secret = $secret ?: (stringstring) config('services.jigsource.license_secret', '');
         $payload = self::base64UrlEncode(json_encode($claims, JSON_UNESCAPED_SLASHES));
         $sig = self::base64UrlEncode(hash_hmac('sha256', $payload, $secret, true));
 
