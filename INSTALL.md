@@ -10,7 +10,7 @@ This guide covers **Git deploy**, **manual ZIP upload**, Hostinger notes, and **
 - Extensions: `bcmath`, `ctype`, `fileinfo`, `json`, `mbstring`, `openssl`, `pdo`, `tokenizer`, `xml`, `curl`
 - MySQL 5.7+ / MariaDB 10.3+ (or PostgreSQL / SQLite for demos)
 - Composer 2.x (skip on server if `vendor/` is already in the package)
-- Writable: `storage/`, `bootstrap/cache/`
+- Writable: `storage/`, `bootstrap/cache/`, and project root (installer writes `.env`)
 
 ---
 
@@ -43,16 +43,18 @@ php artisan optimize:clear
 
 ---
 
-## B) Manual install (ZIP / File Manager)
+## B) Manual install (ZIP / File Manager) — CodeCanyon path
 
 1. Download the ZIP and extract under e.g. `public_html/coderrr/`.
-2. Make `storage/` and `bootstrap/cache/` writable (755/775).
-3. Copy `.env.example` → `.env` and set `APP_URL` + database (or let the web installer write them).
+2. Make `storage/`, `bootstrap/cache/`, and the **project root** writable (755/775).
+3. **You do not need to create `.env` manually.** On the first request the script copies `.env.example` → `.env` and injects a temporary `APP_KEY` so the installer can boot. The wizard later replaces it with a unique key + your database settings.
 4. If `vendor/` is missing, run `composer install` over SSH.
 5. Open `https://your-domain.com/install` and finish the wizard.
 6. Log in at `/login` → Admin.
 
 After install, `/install` returns **404**. Reinstall only by deleting `storage/installed` via SSH/File Manager.
+
+If you ever see “No application encryption key has been specified”, ensure the project root is writable, delete any broken `.env`, and refresh `/install`.
 
 ---
 
@@ -61,7 +63,7 @@ After install, `/install` returns **404**. Reinstall only by deleting `storage/i
 Until activated, Admin locks all features **except** Basic settings, Blog, System tools, and the Activation page.
 
 1. **Admin → License activation** (`/admin/activation`)
-2. Enter the **Envato purchase code**
+2. Enter the **Envato purchase code** (or JigSource license key)
 3. Code is bound to the **current domain**
 
 ### Live Envato API (author)
@@ -95,7 +97,7 @@ Admin → **System tools**: migrations + clear caches.
 
 ## CodeCanyon buyers
 
-See **Installations.html** (buyer-focused, includes Composer notes).
+See **Installations.html** (buyer-focused HTML guide).
 
 ---
 
