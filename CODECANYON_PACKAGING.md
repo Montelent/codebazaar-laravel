@@ -33,26 +33,28 @@ This produces a complete `vendor/` folder (required for shared-hosting buyers wh
 
 ## 3. Clean sensitive / development files
 
-Remove or ensure these are **never** in the sales ZIP:
-
 ```bash
 rm -rf .git
-rm -f .env
+rm -f .env          # never ship your real secrets
 rm -f .env.local .env.testing
 rm -rf storage/logs/*
 rm -rf storage/framework/cache/*
 rm -rf storage/framework/sessions/*
 rm -rf storage/framework/views/*
 rm -rf bootstrap/cache/*.php
-# Keep .gitignore, .env.example, .env.install
+rm -f storage/installed   # must not be present — buyers need the installer
 ```
 
 Do **not** include:
 - Your real `.env`
 - Author master passphrase in any buyer-facing file
-- Development tools, tests (optional — many authors keep a minimal tests folder)
-- `node_modules` (none in this project)
-- Any personal API keys
+- Personal API keys / tokens
+- `node_modules`
+
+**Important – APP_KEY / first boot**
+
+The release ZIP must **not** contain a real `.env`.  
+`public/index.php` automatically copies `.env.example` → `.env` and injects a temporary `APP_KEY` on the first request if the site is not yet installed. The web installer later overwrites `.env` with a unique key + the buyer’s database settings. This prevents the “No application encryption key has been specified” 500 error.
 
 ---
 
@@ -64,18 +66,18 @@ These files must be in the root of the ZIP:
 |------|---------|
 | `Installations.html` | Buyer-friendly HTML install guide (CodeCanyon loves this) |
 | `INSTALL.md` | Technical install |
-| `Documentation.md` or `USER_GUIDE.md` | Full usage documentation |
+| `USER_GUIDE.md` / `Documentation.md` | Full usage documentation |
 | `CHANGELOG.md` | Version history |
 | `README.md` | Overview |
 | `VERSION` | Plain text version number |
-| `LICENSE` or license note (MIT or proprietary as you choose for commercial) |
+| `.env.example` | Template (used by auto-bootstrap) |
 
 ---
 
 ## 5. Create the release ZIP
 
 ```bash
-# From inside the project root
+# From inside the project root (after composer install + cleanup)
 zip -r ../codebazaar-laravel-v1.0.0.zip . \
   -x "*.git*" \
   -x "*node_modules*" \
@@ -85,61 +87,65 @@ zip -r ../codebazaar-laravel-v1.0.0.zip . \
   -x "storage/framework/sessions/*" \
   -x "storage/framework/views/*" \
   -x "bootstrap/cache/*.php" \
+  -x "storage/installed" \
   -x "tests/*" \
   -x "*.DS_Store" \
   -x "dist/*"
 ```
 
-Recommended final name for CodeCanyon:
-`codebazaar-laravel-v1.0.0.zip`
+Recommended final name: `codebazaar-laravel-v1.0.0.zip`
 
 ---
 
-## 6. Optional: Author-only unrestricted build
+## 6. Test the ZIP before uploading (mandatory)
+
+1. Upload the ZIP to a clean shared-hosting account (or local folder).
+2. Extract it.
+3. Point the domain document root at `public/` (or use the root index + .htaccess).
+4. Open `https://your-test-domain.com/install` — it must load without a 500.
+5. Complete the wizard, log in, activate license, create a product.
+
+If you still see “No application encryption key…”, the auto-bootstrap in `public/index.php` did not run (permissions on project root, or `storage/installed` was accidentally included).
+
+---
+
+## 7. Optional: Author-only unrestricted build
 
 For your own sites (no license lock):
 
-```bash
-# Set in .env or hard-code for private ZIP
-# DISABLE_PRODUCT_LICENSE=true
-# And/or disable the EnsureProductActivated middleware
+```env
+DISABLE_PRODUCT_LICENSE=true
 ```
 
-A pre-built no-license ZIP already exists in previous artifacts (`codebazaar-no-license.zip`).
+Or use the pre-built no-license ZIP with middleware disabled.
 
 ---
 
-## 7. CodeCanyon upload checklist
+## 8. CodeCanyon upload checklist
 
-Before uploading:
-
-- [ ] Version number matches `composer.json`, `VERSION`, `CHANGELOG.md`
-- [ ] `Installations.html` opens cleanly in a browser
-- [ ] No `.env` or secret keys inside the ZIP
-- [ ] `vendor/` is present (or clear note that Composer is required)
-- [ ] Screenshots of homepage, product page, admin, mobile
-- [ ] Demo credentials prepared (if you host a live demo)
-- [ ] Item description, tags, and support policy ready
-- [ ] License type chosen (Regular / Extended) and price set
-- [ ] Test the ZIP on a clean shared-hosting account (upload → /install → activate → create product)
+- [ ] Version matches `composer.json`, `VERSION`, `CHANGELOG.md`
+- [ ] `Installations.html` opens cleanly
+- [ ] No real `.env` or secrets inside the ZIP
+- [ ] `vendor/` is present
+- [ ] `storage/installed` is **absent**
+- [ ] First visit to `/install` works without 500 (APP_KEY auto-created)
+- [ ] Screenshots ready (homepage, product page, admin, mobile)
+- [ ] Demo credentials prepared
+- [ ] Support policy ready
 
 ---
 
-## 8. After approval — updates
+## 9. After approval — updates
 
-For future versions:
-
-1. Bump version in `composer.json` and `VERSION`
+1. Bump version in `composer.json` + `VERSION`
 2. Update `CHANGELOG.md`
-3. Re-run the packaging steps
-4. Upload as a new version on CodeCanyon (buyers receive free updates)
+3. Re-run packaging steps
+4. Upload as a new version on CodeCanyon
 
 ---
 
-## Quick one-liner (after composer install)
+## Quick one-liner (after composer install + cleanup)
 
 ```bash
-zip -r ../codebazaar-laravel-v1.0.0.zip . -x "*.git*" -x "*.env" -x "storage/logs/*" -x "storage/framework/*/*" -x "bootstrap/cache/*.php" -x "tests/*"
+zip -r ../codebazaar-laravel-v1.0.0.zip . -x "*.git*" -x "*.env" -x "storage/logs/*" -x "storage/framework/*/*" -x "bootstrap/cache/*.php" -x "storage/installed" -x "tests/*"
 ```
-
-That’s it. Upload the resulting ZIP to CodeCanyon.
