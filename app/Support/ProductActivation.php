@@ -273,7 +273,6 @@ class ProductActivation
             ?? false
         );
 
-        // Some APIs return 200 with { status: "valid" }
         if (! $valid) {
             $status = strtolower((string) (data_get($body, 'status') ?? data_get($body, 'data.status') ?? ''));
             if (in_array($status, ['valid', 'active', 'ok', 'success'], true)) {
@@ -335,7 +334,6 @@ class ProductActivation
                 ];
             }
 
-            // Testing / author debug only
             self::persist([
                 'active' => true,
                 'type' => 'envato',
@@ -486,7 +484,7 @@ class ProductActivation
      */
     public static function issueJigsourceSignedKey(array $claims, ?string $secret = null): string
     {
-        $secret = $secret ?: (stringstring) config('services.jigsource.license_secret', '');
+        $secret = $secret ?: (string) config('services.jigsource.license_secret', '');
         $payload = self::base64UrlEncode(json_encode($claims, JSON_UNESCAPED_SLASHES));
         $sig = self::base64UrlEncode(hash_hmac('sha256', $payload, $secret, true));
 
