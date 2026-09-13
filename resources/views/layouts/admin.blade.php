@@ -6,6 +6,14 @@
     <title>@yield('title', 'Admin') · CodeBazaar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js" referrerpolicy="origin"></script>
+    <style>
+      .admin-kebab-menu { max-height: min(70vh, 320px); overflow-y: auto; }
+      .admin-status { display:inline-flex; align-items:center; border-radius:9999px; padding:2px 8px; font-size:11px; font-weight:600; text-transform:capitalize; }
+      .admin-status-ok { background:#ecfdf5; color:#047857; }
+      .admin-status-warn { background:#fffbeb; color:#b45309; }
+      .admin-status-muted { background:#f1f5f9; color:#475569; }
+      .admin-status-danger { background:#fef2f2; color:#b91c1c; }
+    </style>
     @stack('head')
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
@@ -77,7 +85,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if (closeBtn) closeBtn.addEventListener('click', closeMenu);
   if (backdrop) backdrop.addEventListener('click', closeMenu);
 
-  // Collapsible nav groups (Settings drawer)
   document.querySelectorAll('[data-nav-group]').forEach(function (group) {
     var toggle = group.querySelector('[data-nav-toggle]');
     var panel = group.querySelector('[data-nav-panel]');
@@ -95,6 +102,39 @@ document.addEventListener('DOMContentLoaded', function () {
         if (chevron) chevron.classList.add('rotate-90');
       }
     });
+  });
+
+  // Kebab menus
+  function closeAllKebabs(except) {
+    document.querySelectorAll('[data-kebab]').forEach(function (k) {
+      if (except && k === except) return;
+      var menu = k.querySelector('[data-kebab-menu]');
+      var t = k.querySelector('[data-kebab-toggle]');
+      if (menu) menu.classList.add('hidden');
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+  }
+  document.querySelectorAll('[data-kebab]').forEach(function (wrap) {
+    var toggle = wrap.querySelector('[data-kebab-toggle]');
+    var menu = wrap.querySelector('[data-kebab-menu]');
+    if (!toggle || !menu) return;
+    toggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var open = !menu.classList.contains('hidden');
+      closeAllKebabs(wrap);
+      if (open) {
+        menu.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+      } else {
+        menu.classList.remove('hidden');
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+  document.addEventListener('click', function () { closeAllKebabs(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeAllKebabs();
   });
 
   if (typeof tinymce !== 'undefined') {
