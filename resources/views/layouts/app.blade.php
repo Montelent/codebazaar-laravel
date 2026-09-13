@@ -26,10 +26,6 @@
         $cPrimary = $theme['primary'] ?? '#82b440';
         $cHover = $theme['primary_hover'] ?? '#6f9a36';
         $cSecondary = $theme['secondary'] ?? '#1b2838';
-        $cHeaderBg = $theme['header_bg'] ?? '#ffffff';
-        $cFooterBg = $theme['footer_bg'] ?? '#1a1a1a';
-        $cFooterText = $theme['footer_text'] ?? '#b0b0b0';
-        $cAnnBg = $theme['announcement_bg'] ?? '#2c3e50';
         $cartCount = 0;
         try {
             $cart = session('cart', []);
@@ -108,34 +104,17 @@
             </a>
             @auth
                 @if(auth()->user()->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}" class="cc-hide-mobile" title="Admin">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        <span class="cc-icon-label">Admin</span>
-                    </a>
+                    <a href="{{ route('admin.dashboard') }}" class="cc-hide-mobile" title="Admin"><span class="cc-icon-label">Admin</span></a>
                 @endif
-                <a href="{{ route('account.index') }}" class="cc-hide-mobile" title="Account">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                    <span class="cc-icon-label">{{ \Illuminate\Support\Str::limit(auth()->user()->name ?: 'Account', 12) }}</span>
-                </a>
+                <a href="{{ route('account.index') }}" class="cc-hide-mobile" title="Account"><span class="cc-icon-label">{{ \Illuminate\Support\Str::limit(auth()->user()->name ?: 'Account', 12) }}</span></a>
                 <form method="post" action="{{ route('logout') }}" class="cc-hide-mobile">@csrf
-                    <button type="submit" title="Logout">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        <span class="cc-icon-label">Logout</span>
-                    </button>
+                    <button type="submit" title="Logout"><span class="cc-icon-label">Logout</span></button>
                 </form>
             @else
-                <a href="{{ route('login') }}" class="cc-hide-mobile" title="Sign in">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-                    <span class="cc-icon-label">Sign in</span>
-                </a>
-                <a href="{{ route('register') }}" class="cc-btn-green cc-hide-mobile" title="Create account">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                    <span class="cc-icon-label">Create account</span>
-                </a>
+                <a href="{{ route('login') }}" class="cc-hide-mobile" title="Sign in"><span class="cc-icon-label">Sign in</span></a>
+                <a href="{{ route('register') }}" class="cc-btn-green cc-hide-mobile" title="Create account"><span class="cc-icon-label">Create account</span></a>
             @endauth
-            <button type="button" class="cc-menu-btn" id="cc-menu-open" aria-label="Menu">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-            </button>
+            <button type="button" class="cc-menu-btn" id="cc-menu-open" aria-label="Menu">☰</button>
         </div>
     </div>
     <div class="cc-subnav">
@@ -146,8 +125,7 @@
               @endforeach
             @endif
             @foreach($navDesktop as $link)
-                @php $href = $link['url'] ?? '#'; @endphp
-                <a href="{{ $href }}" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
+                <a href="{{ $link['url'] ?? '#' }}" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
             @endforeach
         </div>
     </div>
@@ -170,17 +148,16 @@
         @foreach($navMobile as $link)
             <a href="{{ $link['url'] ?? '#' }}" @if(!empty($link['open_new'])) target="_blank" rel="noopener" @endif>{{ $link['label'] ?? '' }}</a>
         @endforeach
-        @if(!isset($navOptions['mobile_show_account_links']) || !empty($navOptions['mobile_show_account_links']))
-        <a href="{{ route('cart.index') }}">Cart @if($cartCount > 0)({{ $cartCount }})@endif</a>
         @auth
             <a href="{{ route('account.index') }}">Account</a>
+            <a href="{{ route('credits.index') }}">Credits</a>
+            <a href="{{ route('support.index') }}">Support</a>
             @if(auth()->user()->isAdmin())<a href="{{ route('admin.dashboard') }}">Admin</a>@endif
             <form method="post" action="{{ route('logout') }}">@csrf<button type="submit" style="width:100%;text-align:left;padding:12px 8px;border:0;border-bottom:1px solid #f1f5f9;background:none;font-weight:500">Logout</button></form>
         @else
             <a href="{{ route('login') }}">Sign in</a>
             <a href="{{ route('register') }}">Create account</a>
         @endauth
-        @endif
     </div>
 </div>
 
@@ -234,6 +211,9 @@
     {!! \App\Support\AdSlots::render('footer_bottom') !!}
     <div class="border-t py-4 text-center text-xs" style="border-color:color-mix(in srgb, var(--cc-footer-bg) 70%, #fff);color:var(--cc-footer-text)">&copy; {{ date('Y') }} CodeBazaar · <a href="{{ url('/sitemap') }}">Sitemap</a></div>
 </footer>
+
+@include('partials.support-fab')
+
 <script>
 (function () {
   var drawer = document.getElementById('cc-drawer');
