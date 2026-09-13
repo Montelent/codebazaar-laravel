@@ -13,7 +13,6 @@
       .admin-status-warn { background:#fffbeb; color:#b45309; }
       .admin-status-muted { background:#f1f5f9; color:#475569; }
       .admin-status-danger { background:#fef2f2; color:#b91c1c; }
-      /* TinyMCE shell — full width, wrapped toolbars */
       .tox-tinymce { max-width: 100% !important; border-radius: 0.5rem !important; }
       .tox .tox-toolbar-overlord,
       .tox .tox-toolbar__primary {
@@ -25,7 +24,6 @@
         padding: 2px 0 !important;
       }
       .tox .tox-editor-header { z-index: 1; }
-      /* Hide TinyMCE's unhelpful clipboard error toast on mobile when we provide fallback */
       .tox-notifications-container .tox-notification { max-width: min(100%, 360px); }
     </style>
     @stack('head')
@@ -151,28 +149,67 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   if (typeof tinymce !== 'undefined') {
+    function selectedPlainText(editor) {
+      return editor.selection.getContent({ format: 'text' }) || '';
+    }
+
+    function writeClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      return Promise.reject(new Error('no clipboard'));
+    }
+
+    function openPasteDialog(editor) {
+      editor.windowManager.open({
+        title: 'Paste content',
+        body: {
+          type: 'panel',
+          items: [{
+            type: 'textarea',
+            name: 'pasted',
+            label: 'Paste or type content here, then click Insert',
+            maximized: true
+          }]
+        },
+        buttons: [
+          { type: 'cancel', text: 'Cancel' },
+          { type: 'submit', text: 'Insert', primary: true }
+        ],
+        onSubmit: function (api) {
+          var data = api.getData();
+          var raw = (data.pasted || '').trim();
+          if (raw) {
+            if (/<[a-z][\s\S]*>/i.test(raw)) {
+              editor.insertContent(raw);
+            } else {
+              editor.insertContent(editor.dom.encode(raw).replace(/\r\n|\r|\n/g, '<br>'));
+            }
+          }
+          api.close();
+        }
+      });
+    }
+
     tinymce.init({
       selector: 'textarea.tinymce',
       height: 420,
       resize: true,
-      // Keep menubar on all sizes; wraps naturally
       menubar: 'file edit view insert format tools table help',
       plugins: [
         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
         'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
         'insertdatetime', 'media', 'table', 'help', 'wordcount'
       ],
-      // Full toolbar — wrap mode shows ALL tools on every screen (no hidden overflow)
       toolbar: [
         'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor',
         'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent',
-        'link image media table | removeformat pastetext | code fullscreen preview | pastehelper'
+        'link image media table | removeformat pastetext | code fullscreen preview | cuthelper copyhelper pastehelper'
       ].join(' | '),
       toolbar_mode: 'wrap',
       toolbar_sticky: false,
 
       contextmenu: 'link image inserttable | cell row column deletetable',
-      // Prefer native browser menu for cut/copy/paste (works better on mobile)
       contextmenu_never_use_native: false,
 
       browser_spellcheck: true,
@@ -190,14 +227,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
       content_style: 'body{font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#222;padding:8px} p{margin:0 0 1em} h1,h2,h3{font-weight:700;margin:1em 0 .5em} ul,ol{padding-left:1.4em;margin:0 0 1em} img{max-width:100%;height:auto}',
 
-      // Do not shrink the toolbar on mobile — wrap instead
       mobile: {
         menubar: 'file edit insert format',
         toolbar_mode: 'wrap',
         toolbar: [
           'undo redo | bold italic underline | blocks',
           'bullist numlist | link image | alignleft aligncenter',
-          'removeformat pastetext | code | pastehelper'
+          'removeformat pastetext | code | cuthelper copyhelper pastehelper'
         ].join(' | ')
       },
 
@@ -206,12 +242,60 @@ document.addEventListener('DOMContentLoaded', function () {
           editor.save();
         });
 
-        // Custom "Paste text" button — works on mobile when clipboard API is blocked
+        editor.ui.registry.addButton('cuthelper', {
+          text: 'Cut',
+          tooltip: 'Cut selection (mobile-friendly)',
+          onAction: function () {
+            var text = selectedPlainText(editor);
+            if (!text) {
+              editor.notificationManager.open({ text: 'Select text to cut first.', type: 'warning', timeout: 2500 });
+              return;
+            }
+            writeClipboard(text).then(function () {
+              editor.selection.setContent('');
+              editor.notificationManager.open({ text: 'Cut to clipboard.', type: 'success', timeout: 2000 });
+            }).catch(function () {
+              // Fallback: remove selection and show text so user can copy manually
+              editor.windowManager.alert('Clipboard blocked. Selected text was removed from the editor. Long-press in another app to paste if it was already copied, or use Paste to re-insert.');
+              editor.selection.setContent('');
+            });
+          }
+        });
+
+        editor.ui.registry.addButton('copyhelper', {
+          text: 'Copy',
+          tooltip: 'Copy selection (mobile-friendly)',
+          onAction: function () {
+            var text = selectedPlainText(editor);
+            if (!text) {
+              editor.notificationManager.open({ text: 'Select text to copy first.', type: 'warning', timeout: 2500 });
+              return;
+            }
+            writeClipboard(text).then(function () {
+              editor.notificationManager.open({ text: 'Copied to clipboard.', type: 'success', timeout: 2000 });
+            }).catch(function () {
+              editor.windowManager.open({
+                title: 'Copy text',
+                body: {
+                  type: 'panel',
+                  items: [{
+                    type: 'textarea',
+                    name: 'copied',
+                    label: 'Select all and copy (long-press → Copy)',
+                    maximized: true
+                  }]
+                },
+                initialData: { copied: text },
+                buttons: [{ type: 'cancel', text: 'Close' }]
+              });
+            });
+          }
+        });
+
         editor.ui.registry.addButton('pastehelper', {
           text: 'Paste',
           tooltip: 'Paste text (mobile-friendly)',
           onAction: function () {
-            // Try clipboard API first
             if (navigator.clipboard && navigator.clipboard.readText) {
               navigator.clipboard.readText().then(function (text) {
                 if (text) {
@@ -227,49 +311,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
           }
         });
-
-        editor.ui.registry.addMenuItem('pastehelper', {
-          text: 'Paste text…',
-          onAction: function () {
-            openPasteDialog(editor);
-          }
-        });
       }
     });
-
-    function openPasteDialog(editor) {
-      editor.windowManager.open({
-        title: 'Paste content',
-        body: {
-          type: 'panel',
-          items: [
-            {
-              type: 'textarea',
-              name: 'pasted',
-              label: 'Paste or type content here, then click Insert',
-              maximized: true
-            }
-          ]
-        },
-        buttons: [
-          { type: 'cancel', text: 'Cancel' },
-          { type: 'submit', text: 'Insert', primary: true }
-        ],
-        onSubmit: function (api) {
-          var data = api.getData();
-          var raw = (data.pasted || '').trim();
-          if (raw) {
-            // If it looks like HTML, insert as-is; otherwise plain text with line breaks
-            if (/<[a-z][\s\S]*>/i.test(raw)) {
-              editor.insertContent(raw);
-            } else {
-              editor.insertContent(editor.dom.encode(raw).replace(/\r\n|\r|\n/g, '<br>'));
-            }
-          }
-          api.close();
-        }
-      });
-    }
 
     document.addEventListener('submit', function () {
       if (window.tinymce) {
