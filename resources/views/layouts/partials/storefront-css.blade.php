@@ -37,9 +37,11 @@
 .cc-logo-v2{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:#0f172a}
 .cc-logo-cube{width:36px;height:36px;border-radius:10px;background:linear-gradient(145deg,#10b981,#059669);color:#fff;display:inline-flex;align-items:center;justify-content:center}
 .cc-logo-text{font-weight:800;font-size:1.25rem;letter-spacing:-0.02em}
-.cc-icon-btn,.cc-account-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:4px;width:42px;height:42px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#334155;text-decoration:none}
+.cc-icon-btn,.cc-account-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:4px;width:42px;height:42px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#334155;text-decoration:none;cursor:pointer;font:inherit}
 .cc-account-btn{width:auto;padding:0 12px;border-radius:999px}
-.cc-icon-btn:hover,.cc-account-btn:hover{border-color:#cbd5e1;background:#f8fafc}
+.cc-icon-btn:hover,.cc-account-btn:hover,.cc-account-wrap.is-open .cc-account-btn{border-color:#cbd5e1;background:#f8fafc}
+.cc-account-wrap.is-open .cc-account-chevron{transform:rotate(180deg)}
+.cc-account-chevron{transition:transform .15s ease}
 .cc-cart-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--cc-accent);color:#fff;font-size:10px;font-weight:700;line-height:18px;text-align:center}
 .cc-menu-btn{display:inline-flex;width:40px;height:40px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;align-items:center;justify-content:center;cursor:pointer;color:#334155}
 .cc-subnav-v2{border-top:1px solid #eef0f3;background:#fff}
@@ -48,6 +50,24 @@
 .cc-subnav-v2 a{flex-shrink:0;padding:10px 12px;font-size:13px;font-weight:500;color:#64748b;text-decoration:none;white-space:nowrap}
 .cc-subnav-v2 a:hover{color:var(--cc-accent)}
 @media(max-width:640px){.cc-util-bar{display:none}}
+
+/* Account dropdown */
+.cc-account-wrap{position:relative}
+.cc-account-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:50;width:min(280px,92vw);background:#fff;border:1px solid #e8ecf1;border-radius:16px;box-shadow:0 16px 40px rgba(15,23,42,.14);padding:8px;overflow:hidden}
+.cc-account-menu[hidden]{display:none!important}
+.cc-account-menu-head{padding:12px 14px 10px;border-bottom:1px solid #f1f5f9;margin-bottom:4px}
+.cc-account-menu-name{margin:0;font-size:14px;font-weight:700;color:#0f172a}
+.cc-account-menu-email{margin:2px 0 0;font-size:12px;color:#64748b;word-break:break-all}
+.cc-account-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;border:0;border-radius:10px;background:transparent;color:#334155;font-size:14px;font-weight:500;text-decoration:none;text-align:left;cursor:pointer;font-family:inherit}
+.cc-account-item svg{flex-shrink:0;color:#64748b}
+.cc-account-item:hover{background:#f8fafc;color:#0f172a}
+.cc-account-item:hover svg{color:#0f172a}
+.cc-account-cta{color:#0d9488!important}
+.cc-account-menu-divider{height:1px;background:#f1f5f9;margin:6px 8px}
+.cc-account-signout{color:#dc2626!important}
+.cc-account-signout svg{color:#dc2626!important}
+.cc-account-signout:hover{background:#fef2f2!important}
+.cc-account-logout{margin:0}
 
 /* Hero v2 */
 .cc-hero-v2{background:var(--cc-secondary);color:#fff;padding:64px 0 72px;text-align:center}
