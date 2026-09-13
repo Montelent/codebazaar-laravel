@@ -4,24 +4,24 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class UserAdminController extends Controller
 {
-    /** All users (legacy) or filtered via query. */
     public function index(Request $request)
     {
         return $this->listUsers($request, 'all');
     }
 
-    /** Buyers / regular members only. */
     public function members(Request $request)
     {
         return $this->listUsers($request, 'members');
     }
 
-    /** Admins + authors. */
     public function staff(Request $request)
     {
         return $this->listUsers($request, 'staff');
@@ -108,7 +108,9 @@ class UserAdminController extends Controller
 
     public function edit(User $user)
     {
-        return view('admin.users.form', compact('user'));
+        $transactions = $user->creditTransactions()->limit(20)->get();
+
+        return view('admin.users.form', compact('user', 'transactions'));
     }
 
     public function update(Request $request, User $user)
@@ -145,5 +147,57 @@ class UserAdminController extends Controller
         $user->delete();
 
         return back()->with('success', 'User deleted.');
+    }
+
+    /** Add or remove credits from user wallet. */
+    public function addFunds(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'amount' => 'required|numeric',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $amount = (float) $data['amount'];
+        if ($amount == 0.0) {
+            return back()->with('error', 'Amount cannot be zero.');
+        }
+
+        $note = $data['note'] ?: 'Admin adjustment';
+
+        try {
+            if ($amount > 0) {
+                WalletService::credit($user, $amount, 'admin_adjust', $note, [
+                    'admin_id' => Auth::id(),
+                ]);
+            } else {
+                WalletService::debit($user, abs($amount), 'admin_adjust', $note, [
+                    'admin_id' => Auth::id(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Wallet updated. New balance: '.$user->fresh()->credit_balance);
+    }
+
+    /** Send a plain email to the user (uses configured SMTP). */
+    public function sendEmail(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'subject' => 'required|string|max:180',
+            'body' => 'required|string|max:10000',
+        ]);
+
+        try {
+            Mail::raw($data['body'], function ($message) use ($user, $data) {
+                $message->to($user->email, $user->name)
+                    ->subject($data['subject']);
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Failed to send email: '.$e->getMessage());
+        }
+
+        return back()->with('success', 'Email sent to '.$user->email);
     }
 }
