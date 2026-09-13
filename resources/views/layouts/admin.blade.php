@@ -13,6 +13,17 @@
       .admin-status-warn { background:#fffbeb; color:#b45309; }
       .admin-status-muted { background:#f1f5f9; color:#475569; }
       .admin-status-danger { background:#fef2f2; color:#b91c1c; }
+      /* TinyMCE responsive shell */
+      .tox-tinymce { max-width: 100% !important; border-radius: 0.5rem !important; }
+      .tox .tox-toolbar__primary { flex-wrap: wrap !important; }
+      .tox .tox-editor-header { z-index: 1; }
+      @media (max-width: 640px) {
+        .tox .tox-menubar { flex-wrap: wrap; }
+        .tox .tox-toolbar,
+        .tox .tox-toolbar__overflow {
+          max-width: 100%;
+        }
+      }
     </style>
     @stack('head')
 </head>
@@ -104,7 +115,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Kebab menus
   function closeAllKebabs(except) {
     document.querySelectorAll('[data-kebab]').forEach(function (k) {
       if (except && k === except) return;
@@ -138,27 +148,62 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   if (typeof tinymce !== 'undefined') {
+    var isNarrow = window.matchMedia('(max-width: 768px)').matches;
+
     tinymce.init({
       selector: 'textarea.tinymce',
-      height: 420,
-      menubar: 'file edit view insert format tools table help',
+      height: isNarrow ? 360 : 420,
+      resize: true,
+      menubar: isNarrow ? false : 'file edit view insert format tools table help',
       plugins: [
         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
         'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
         'insertdatetime', 'media', 'table', 'help', 'wordcount'
       ],
-      toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | removeformat | code fullscreen preview',
-      toolbar_mode: 'sliding',
+      // Desktop toolbar — sliding overflow keeps one row tidy
+      toolbar: isNarrow
+        ? 'undo redo | bold italic underline | bullist numlist | link image | blocks | removeformat | code fullscreen'
+        : 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image media table | removeformat | code fullscreen preview',
+      toolbar_mode: isNarrow ? 'scrolling' : 'sliding',
+      toolbar_sticky: false,
+
+      // Right-click / long-press: Cut, Copy, Paste + useful inserts
+      contextmenu: 'cut copy paste pastetext | link image inserttable | cell row column deletetable',
+      // Allow browser native menu when TinyMCE has nothing useful (helps mobile paste)
+      contextmenu_never_use_native: false,
+
+      browser_spellcheck: true,
       branding: false,
       promotion: false,
       license_key: 'gpl',
+
+      // Keep pasted content usable
+      paste_data_images: true,
+      paste_as_text: false,
+
       valid_elements: '*[*]',
       extended_valid_elements: '*[*]',
       verify_html: false,
       entity_encoding: 'raw',
-      content_style: 'body{font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#222} p{margin:0 0 1em} h1,h2,h3{font-weight:700;margin:1em 0 .5em} ul,ol{padding-left:1.4em;margin:0 0 1em} img{max-width:100%;height:auto}',
+
+      content_style: 'body{font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#222;padding:8px} p{margin:0 0 1em} h1,h2,h3{font-weight:700;margin:1em 0 .5em} ul,ol{padding-left:1.4em;margin:0 0 1em} img{max-width:100%;height:auto}',
+
+      // Mobile-specific profile (TinyMCE applies when viewport is small)
+      mobile: {
+        menubar: false,
+        toolbar_mode: 'scrolling',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | link image | blocks | removeformat | code',
+        height: 340
+      },
+
       setup: function (editor) {
-        editor.on('change keyup', function () { editor.save(); });
+        editor.on('change keyup SetContent', function () {
+          editor.save();
+        });
+        // Ensure keyboard shortcuts still work
+        editor.addShortcut('meta+c', 'Copy', function () { editor.execCommand('Copy'); });
+        editor.addShortcut('meta+x', 'Cut', function () { editor.execCommand('Cut'); });
+        editor.addShortcut('meta+v', 'Paste', function () { editor.execCommand('Paste'); });
       }
     });
 
