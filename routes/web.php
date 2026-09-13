@@ -7,6 +7,7 @@ use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\CreditsController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\Admin\ActivationController;
 use App\Http\Controllers\Admin\AdSettingsController;
@@ -37,6 +39,7 @@ use App\Http\Controllers\Admin\SmtpSettingsController;
 use App\Http\Controllers\Admin\StorageSettingsController;
 use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\TagController;
+use App\Http\Controllers\Admin\TicketAdminController;
 use App\Http\Controllers\Admin\UserAdminController;
 use App\Support\Installer;
 use Illuminate\Support\Facades\Route;
@@ -83,6 +86,7 @@ Route::post('/cart/clear', [CartController::class, 'clear'])->name('cart.clear')
 Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
 Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');
 Route::get('/checkout/success', [CheckoutController::class, 'success'])->name('checkout.success');
+Route::get('/checkout/pending/{order}', [CheckoutController::class, 'pending'])->name('checkout.pending');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -100,7 +104,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/download/{itemId}', [AccountController::class, 'downloadFile'])->name('download');
         Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
         Route::get('/collections', [CollectionController::class, 'index'])->name('collections');
+        Route::get('/credits', [CreditsController::class, 'index'])->name('credits');
     });
+
+    Route::get('/credits', [CreditsController::class, 'index'])->name('credits.index');
+    Route::post('/credits/topup', [CreditsController::class, 'topup'])->name('credits.topup');
+    Route::get('/credits/pay', [CreditsController::class, 'pay'])->name('credits.pay');
+
+    Route::get('/support', [TicketController::class, 'index'])->name('support.index');
+    Route::get('/support/new', [TicketController::class, 'create'])->name('support.create');
+    Route::post('/support', [TicketController::class, 'store'])->name('support.store');
+    Route::get('/support/{ticket}', [TicketController::class, 'show'])->name('support.show');
+    Route::post('/support/{ticket}/reply', [TicketController::class, 'reply'])->name('support.reply');
+
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
     Route::post('/follow/{userId}', [FollowController::class, 'toggle'])->name('follow.toggle');
     Route::post('/collections', [CollectionController::class, 'store'])->name('collections.store');
@@ -146,6 +162,13 @@ Route::middleware(['auth', 'admin', 'product.activated'])->prefix('admin')->name
     Route::get('/members', [UserAdminController::class, 'members'])->name('members.index');
     Route::get('/staff', [UserAdminController::class, 'staff'])->name('staff.index');
     Route::resource('users', UserAdminController::class)->except(['show']);
+    Route::post('/users/{user}/funds', [UserAdminController::class, 'addFunds'])->name('users.funds');
+    Route::post('/users/{user}/email', [UserAdminController::class, 'sendEmail'])->name('users.email');
+
+    Route::get('/tickets', [TicketAdminController::class, 'index'])->name('tickets.index');
+    Route::get('/tickets/{ticket}', [TicketAdminController::class, 'show'])->name('tickets.show');
+    Route::post('/tickets/{ticket}/reply', [TicketAdminController::class, 'reply'])->name('tickets.reply');
+    Route::post('/tickets/{ticket}/status', [TicketAdminController::class, 'updateStatus'])->name('tickets.status');
 
     Route::resource('blog', BlogAdminController::class)->except(['show'])->parameters(['blog' => 'post']);
     Route::resource('pages', PageAdminController::class)->except(['show']);
