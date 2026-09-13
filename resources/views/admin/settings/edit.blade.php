@@ -70,7 +70,7 @@
 
 <section class="rounded-xl border bg-white p-4 sm:p-6">
     <h2 class="font-semibold">Storefront colors</h2>
-    <p class="mt-1 text-xs text-slate-500">Primary drives the red accent (hero highlight + Search button). Secondary is the dark hero background.</p>
+    <p class="mt-1 text-xs text-slate-500">Primary drives the accent (hero highlight + Search button). Secondary is the dark hero background.</p>
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
             <label class="text-sm font-medium">Primary (accent)</label>
@@ -104,7 +104,7 @@
             <label class="text-sm font-medium">Footer background</label>
             <div class="mt-1 flex items-center gap-2">
                 <input type="color" name="color_footer_bg" value="{{ $colors['footer_bg'] ?? '#0b1220' }}" class="h-10 w-14 cursor-pointer rounded border p-0.5">
-                <input type="text" value="{{ $colors['footer_bg'] ?? '#0b1220' }}" class="w-full rounded-lg border px-2 py-2 font-mono text-xs" oninput="this.previousElementSibling.value=this.value">
+                <input type="text" value="{{ $colors['footer_text'] ?? '#0b1220' }}" class="w-full rounded-lg border px-2 py-2 font-mono text-xs" oninput="this.previousElementSibling.value=this.value">
             </div>
         </div>
         <div>
@@ -144,10 +144,10 @@
   btn.addEventListener('click', function () {
     var div = document.createElement('div');
     div.className = 'cat-row grid gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3 sm:grid-cols-12';
-    div.innerHTML = \
-      '<div class="sm:col-span-2"><label class="text-[11px] font-medium text-slate-500">Icon</label><input name="cat_icon[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="🟦 or URL"></div>' +
+    div.innerHTML =
+      '<div class="sm:col-span-2"><label class="text-[11px] font-medium text-slate-500">Icon</label><input name="cat_icon[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="icon"></div>' +
       '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Title</label><input name="cat_title[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="WordPress"></div>' +
-      '<div class="sm:col-span-4"><label class="text-[11px] font-medium text-slate-500">Subtitle</label><input name="cat_subtitle[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="Themes, plugins…"></div>' +
+      '<div class="sm:col-span-4"><label class="text-[11px] font-medium text-slate-500">Subtitle</label><input name="cat_subtitle[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="Themes, plugins"></div>' +
       '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Link URL</label><input name="cat_url[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="/category/wordpress"></div>';
     wrap.appendChild(div);
   });
