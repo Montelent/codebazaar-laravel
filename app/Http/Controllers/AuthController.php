@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\WalletService;
 use App\Support\EmailVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,9 +34,11 @@ class AuthController extends Controller
         return back()->withErrors(['email' => 'Invalid credentials.'])->onlyInput('email');
     }
 
-    public function showRegister()
+    public function showRegister(Request $request)
     {
-        return view('auth.register');
+        $ref = $request->query('ref');
+
+        return view('auth.register', compact('ref'));
     }
 
     public function register(Request $request)
@@ -46,7 +49,17 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'newsletter' => 'nullable|boolean',
+            'referral_code' => 'nullable|string|max:32',
         ]);
+
+        $referredBy = null;
+        $code = trim((string) ($data['referral_code'] ?? $request->query('ref') ?? ''));
+        if ($code !== '') {
+            $referrer = User::where('referral_code', strtoupper($code))->first();
+            if ($referrer) {
+                $referredBy = $referrer->id;
+            }
+        }
 
         $user = User::create([
             'name' => $data['name'],
@@ -55,7 +68,16 @@ class AuthController extends Controller
             'password' => Hash::make($data['password']),
             'role' => 'buyer',
             'newsletter' => $request->boolean('newsletter'),
+            'referred_by' => $referredBy,
         ]);
+
+        if ($referredBy) {
+            try {
+                WalletService::rewardReferrer($user);
+            } catch (\Throwable) {
+                //
+            }
+        }
 
         EmailVerification::send($user);
         Auth::login($user);
@@ -83,7 +105,6 @@ class AuthController extends Controller
             abort(403, 'Invalid verification link.');
         }
 
-        // Prefer signed URL when available
         if ($request->hasValidSignature() || true) {
             EmailVerification::markVerified($user);
         }
