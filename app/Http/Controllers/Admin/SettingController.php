@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\HomeController;
 use App\Models\SiteSetting;
 use Illuminate\Http\Request;
 
@@ -12,11 +13,14 @@ class SettingController extends Controller
     {
         return view('admin.settings.edit', [
             'hero' => SiteSetting::getValue('hero', [
-                'title' => 'CodeBazaar',
-                'subtitle' => 'Premium code, scripts & digital assets',
-                'cta' => 'Browse items',
+                'eyebrow' => 'CodeBazaar',
+                'title' => 'Code that powers',
+                'title_highlight' => 'your next development',
+                'subtitle' => 'Discover premium scripts, themes, plugins, and templates from world-class independent creator.',
+                'cta' => 'Search',
                 'image' => '',
             ]),
+            'browseCategories' => SiteSetting::getValue('homepage_categories', HomeController::defaultBrowseCategories()),
             'announcement' => SiteSetting::getValue('announcement', [
                 'enabled' => false,
                 'text' => '',
@@ -25,13 +29,13 @@ class SettingController extends Controller
                 'about' => 'The marketplace for high-quality code, scripts, plugins, and digital assets.',
             ]),
             'colors' => SiteSetting::getValue('colors', [
-                'primary' => '#82b440',
-                'primary_hover' => '#6f9a36',
-                'secondary' => '#1b2838',
+                'primary' => '#e11d2e',
+                'primary_hover' => '#c1121f',
+                'secondary' => '#0b1220',
                 'header_bg' => '#ffffff',
-                'footer_bg' => '#1a1a1a',
-                'footer_text' => '#b0b0b0',
-                'announcement_bg' => '#2c3e50',
+                'footer_bg' => '#0b1220',
+                'footer_text' => '#94a3b8',
+                'announcement_bg' => '#0b1220',
             ]),
             'seo' => SiteSetting::getValue('seo', [
                 'title' => 'CodeBazaar',
@@ -43,11 +47,33 @@ class SettingController extends Controller
     public function update(Request $request)
     {
         SiteSetting::setValue('hero', [
+            'eyebrow' => $request->input('hero_eyebrow', 'CodeBazaar'),
             'title' => $request->input('hero_title'),
+            'title_highlight' => $request->input('hero_title_highlight'),
             'subtitle' => $request->input('hero_subtitle'),
             'cta' => $request->input('hero_cta'),
             'image' => $request->input('hero_image'),
         ], 'homepage');
+
+        $icons = $request->input('cat_icon', []);
+        $titles = $request->input('cat_title', []);
+        $subs = $request->input('cat_subtitle', []);
+        $urls = $request->input('cat_url', []);
+        $cards = [];
+        $count = max(count($icons), count($titles), count($subs), count($urls));
+        for ($i = 0; $i < $count; $i++) {
+            $title = trim((string) ($titles[$i] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            $cards[] = [
+                'icon' => trim((string) ($icons[$i] ?? '')),
+                'title' => $title,
+                'subtitle' => trim((string) ($subs[$i] ?? '')),
+                'url' => trim((string) ($urls[$i] ?? '#')) ?: '#',
+            ];
+        }
+        SiteSetting::setValue('homepage_categories', $cards, 'homepage');
 
         SiteSetting::setValue('announcement', [
             'enabled' => $request->boolean('announcement_enabled'),
@@ -61,17 +87,17 @@ class SettingController extends Controller
         $footer['about'] = $request->input('footer_about');
         SiteSetting::setValue('footer', $footer, 'footer');
 
-        $primary = $this->sanitizeHex($request->input('color_primary'), '#82b440');
+        $primary = $this->sanitizeHex($request->input('color_primary'), '#e11d2e');
         $primaryHover = $this->sanitizeHex($request->input('color_primary_hover'), $this->darkenHex($primary, 14));
 
         SiteSetting::setValue('colors', [
             'primary' => $primary,
             'primary_hover' => $primaryHover,
-            'secondary' => $this->sanitizeHex($request->input('color_secondary'), '#1b2838'),
+            'secondary' => $this->sanitizeHex($request->input('color_secondary'), '#0b1220'),
             'header_bg' => $this->sanitizeHex($request->input('color_header_bg'), '#ffffff'),
-            'footer_bg' => $this->sanitizeHex($request->input('color_footer_bg'), '#1a1a1a'),
-            'footer_text' => $this->sanitizeHex($request->input('color_footer_text'), '#b0b0b0'),
-            'announcement_bg' => $this->sanitizeHex($request->input('color_announcement_bg'), '#2c3e50'),
+            'footer_bg' => $this->sanitizeHex($request->input('color_footer_bg'), '#0b1220'),
+            'footer_text' => $this->sanitizeHex($request->input('color_footer_text'), '#94a3b8'),
+            'announcement_bg' => $this->sanitizeHex($request->input('color_announcement_bg'), '#0b1220'),
         ], 'design');
 
         SiteSetting::setValue('seo', [
@@ -79,7 +105,7 @@ class SettingController extends Controller
             'description' => $request->input('seo_description'),
         ], 'seo');
 
-        return redirect()->route('admin.settings.general')->with('success', 'General settings saved. Colors apply on the storefront immediately.');
+        return redirect()->route('admin.settings.general')->with('success', 'General settings saved. Homepage & colors apply immediately (hard-refresh storefront).');
     }
 
     protected function sanitizeHex(?string $value, string $fallback): string
@@ -99,7 +125,7 @@ class SettingController extends Controller
             $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
         }
         if (strlen($hex) !== 6) {
-            return '#6f9a36';
+            return '#c1121f';
         }
         $factor = max(0, min(100, $percent)) / 100;
         $out = '';
