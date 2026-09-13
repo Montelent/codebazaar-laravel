@@ -8,7 +8,7 @@
   $contentOpen = request()->routeIs('admin.blog.*')
       || request()->routeIs('admin.pages.*')
       || request()->routeIs('admin.newsletter.*');
-  $commerceOpen = request()->routeIs('admin.orders.*');
+  $commerceOpen = request()->routeIs('admin.orders.*') || request()->routeIs('admin.tickets.*');
   $membersOpen = request()->routeIs('admin.users.*')
       || request()->routeIs('admin.members.*')
       || request()->routeIs('admin.staff.*');
@@ -18,7 +18,6 @@
 
 <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2 hover:bg-slate-800 {{ request()->routeIs('admin.dashboard') ? 'bg-slate-800 text-white' : '' }}">Dashboard</a>
 
-{{-- Catalog --}}
 <div class="admin-nav-group" data-nav-group>
   <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-800 {{ $catalogOpen ? 'bg-slate-800 text-white' : '' }}" data-nav-toggle aria-expanded="{{ $catalogOpen ? 'true' : 'false' }}">
     <span>Catalog</span>
@@ -35,7 +34,6 @@
   </div>
 </div>
 
-{{-- Content --}}
 <div class="admin-nav-group" data-nav-group>
   <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-800 {{ $contentOpen ? 'bg-slate-800 text-white' : '' }}" data-nav-toggle aria-expanded="{{ $contentOpen ? 'true' : 'false' }}">
     <span>Content</span>
@@ -48,7 +46,6 @@
   </div>
 </div>
 
-{{-- Commerce --}}
 <div class="admin-nav-group" data-nav-group>
   <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-800 {{ $commerceOpen ? 'bg-slate-800 text-white' : '' }}" data-nav-toggle aria-expanded="{{ $commerceOpen ? 'true' : 'false' }}">
     <span>Commerce</span>
@@ -56,10 +53,10 @@
   </button>
   <div class="ml-2 space-y-0.5 overflow-hidden border-l border-slate-700 pl-2 {{ $commerceOpen ? '' : 'hidden' }}" data-nav-panel>
     <a href="{{ route('admin.orders.index') }}" class="block rounded-lg px-3 py-1.5 text-[13px] text-slate-300 hover:bg-slate-800 hover:text-white">Orders</a>
+    <a href="{{ route('admin.tickets.index') }}" class="block rounded-lg px-3 py-1.5 text-[13px] text-slate-300 hover:bg-slate-800 hover:text-white">Support tickets</a>
   </div>
 </div>
 
-{{-- Members --}}
 <div class="admin-nav-group" data-nav-group>
   <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-800 {{ $membersOpen ? 'bg-slate-800 text-white' : '' }}" data-nav-toggle aria-expanded="{{ $membersOpen ? 'true' : 'false' }}">
     <span>Members</span>
@@ -72,7 +69,6 @@
   </div>
 </div>
 
-{{-- Settings --}}
 <div class="admin-nav-group" data-nav-group>
   <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-800 {{ $settingsOpen ? 'bg-slate-800 text-white' : '' }}" data-nav-toggle aria-expanded="{{ $settingsOpen ? 'true' : 'false' }}">
     <span>Settings</span>
@@ -91,7 +87,6 @@
   </div>
 </div>
 
-{{-- Maintenance --}}
 <div class="admin-nav-group" data-nav-group>
   <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-800 {{ $maintOpen ? 'bg-slate-800 text-white' : '' }}" data-nav-toggle aria-expanded="{{ $maintOpen ? 'true' : 'false' }}">
     <span>Maintenance</span>
