@@ -50,6 +50,14 @@
   const uploadUrl = @json(route('admin.media.store'));
   const libraryUrl = @json(route('admin.media.json'));
 
+  function extractUploadUrl(data) {
+    if (!data) return '';
+    return data.url
+      || (data.asset && (data.asset.url || data.asset.path))
+      || data.path
+      || '';
+  }
+
   document.querySelectorAll('[data-media-field]').forEach(function (block) {
     const tabs = block.querySelectorAll('.media-tab');
     tabs.forEach(function (tab) {
@@ -81,23 +89,29 @@
             fd.append('file', file);
             fd.append('disk', disk);
             fd.append('_token', csrf);
-            const res = await fetch(uploadUrl, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const res = await fetch(uploadUrl, {
+              method: 'POST',
+              body: fd,
+              headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Upload failed');
-            const url = data.url || data.path || '';
+            const url = extractUploadUrl(data);
+            if (!url) throw new Error('Upload succeeded but no URL was returned.');
             if (block.dataset.mediaField === 'thumbnail') {
-              document.getElementById('thumbnail_url').value = url;
+              const input = document.getElementById('thumbnail_url');
+              if (input) input.value = url;
               const prev = document.getElementById('thumbnail_preview');
               if (prev) { prev.src = url; prev.classList.remove('hidden'); }
             } else if (block.dataset.mediaField === 'gallery') {
               const ta = document.getElementById('gallery_text');
-              ta.value = (ta.value ? ta.value.trim() + '\n' : '') + url;
+              if (ta) ta.value = (ta.value ? ta.value.trim() + '\n' : '') + url;
             } else if (block.dataset.mediaField === 'mainfile') {
               const type = document.getElementById('bundle-upload-type')?.value || 'main';
               addDownloadRow({ label: file.name || type, url: url, type: type });
             }
           }
-          if (status) status.textContent = 'Uploaded.';
+          if (status) status.textContent = 'Uploaded and linked.';
         } catch (e) {
           if (status) status.textContent = e.message || 'Upload failed';
         }
@@ -112,10 +126,13 @@
         grid.innerHTML = '<p class="col-span-full text-sm text-slate-500">Loading…</p>';
         modal.classList.remove('hidden');
         try {
-          const res = await fetch(libraryUrl, { headers: { 'Accept': 'application/json' } });
+          const res = await fetch(libraryUrl + '?images=1', { headers: { 'Accept': 'application/json' } });
           const data = await res.json();
           const items = data.data || data || [];
           grid.innerHTML = '';
+          if (!items.length) {
+            grid.innerHTML = '<p class="col-span-full text-sm text-slate-500">No media yet. Upload first.</p>';
+          }
           items.forEach(function (m) {
             const url = m.url || m.path || '';
             const btn = document.createElement('button');
@@ -151,7 +168,6 @@
     document.getElementById('media-modal').classList.add('hidden');
   });
 
-  // Category / attributes
   const childrenMap = @json($childrenMap);
   const parentSel = document.getElementById('parent_category');
   const subSel = document.getElementById('sub_category');
@@ -216,18 +232,20 @@
       .then(function (r) { return r.json(); })
       .then(function (data) { renderAttributes(data.attributes || {}); });
   }
-  parentSel.addEventListener('change', function () {
-    fillSubs(parentSel.value, null); syncCategoryId(); loadAttributes(effectiveCategoryId());
-  });
-  subSel.addEventListener('change', function () {
-    syncCategoryId(); loadAttributes(effectiveCategoryId());
-  });
-  if (initialParentId) {
-    parentSel.value = String(initialParentId);
-    fillSubs(initialParentId, initialCategoryId && String(initialCategoryId) !== String(initialParentId) ? initialCategoryId : null);
+  if (parentSel && subSel) {
+    parentSel.addEventListener('change', function () {
+      fillSubs(parentSel.value, null); syncCategoryId(); loadAttributes(effectiveCategoryId());
+    });
+    subSel.addEventListener('change', function () {
+      syncCategoryId(); loadAttributes(effectiveCategoryId());
+    });
+    if (initialParentId) {
+      parentSel.value = String(initialParentId);
+      fillSubs(initialParentId, initialCategoryId && String(initialCategoryId) !== String(initialParentId) ? initialCategoryId : null);
+    }
+    syncCategoryId();
+    if (effectiveCategoryId()) loadAttributes(effectiveCategoryId());
   }
-  syncCategoryId();
-  if (effectiveCategoryId()) loadAttributes(effectiveCategoryId());
 })();
 </script>
 @endpush
