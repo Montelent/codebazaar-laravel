@@ -86,7 +86,6 @@
 @endif
 
 <header class="cc-header-v2 sticky top-0 z-40">
-    {{-- Utility bar --}}
     <div class="cc-util-bar">
         <div class="cc-container cc-util-inner">
             <nav class="cc-util-left">
@@ -108,7 +107,6 @@
         </div>
     </div>
 
-    {{-- Main bar --}}
     <div class="cc-main-bar">
         <div class="cc-container cc-main-inner">
             <div class="cc-main-left">
@@ -127,18 +125,77 @@
                     <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.4.4-.1 1.1.4 1.1H19M17 21a1 1 0 100-2 1 1 0 000 2zM9 21a1 1 0 100-2 1 1 0 000 2z"/></svg>
                     @if($cartCount > 0)<span class="cc-cart-badge">{{ $cartCount > 99 ? '99+' : $cartCount }}</span>@endif
                 </a>
-                <div class="cc-account-wrap">
-                    @auth
-                        <a href="{{ route('account.index') }}" class="cc-account-btn" title="Account">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </a>
-                    @else
-                        <a href="{{ route('login') }}" class="cc-account-btn" title="Sign in">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </a>
-                    @endauth
+
+                {{-- Account dropdown --}}
+                <div class="cc-account-wrap" id="cc-account-wrap">
+                    <button type="button" class="cc-account-btn" id="cc-account-toggle" aria-haspopup="true" aria-expanded="false" title="Account">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <svg class="cc-account-chevron" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+
+                    <div class="cc-account-menu" id="cc-account-menu" role="menu" hidden>
+                        @auth
+                            <div class="cc-account-menu-head">
+                                <p class="cc-account-menu-name">{{ auth()->user()->name ?: 'Account' }}</p>
+                                <p class="cc-account-menu-email">{{ auth()->user()->email }}</p>
+                            </div>
+                            <a href="{{ route('account.index') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+                                Dashboard
+                            </a>
+                            <a href="{{ route('account.purchases') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                                Purchases
+                            </a>
+                            <a href="{{ route('account.downloads') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                Downloads
+                            </a>
+                            <a href="{{ route('account.wishlist') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                                Wishlist
+                            </a>
+                            <a href="{{ route('credits.index') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Credits
+                            </a>
+                            <a href="{{ route('support.index') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                Support
+                            </a>
+                            <a href="{{ route('account.index') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                Settings
+                            </a>
+                            @if(auth()->user()->isAdmin())
+                            <a href="{{ route('admin.dashboard') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                                Admin panel
+                            </a>
+                            @endif
+                            <div class="cc-account-menu-divider"></div>
+                            <form method="post" action="{{ route('logout') }}" class="cc-account-logout">
+                                @csrf
+                                <button type="submit" role="menuitem" class="cc-account-item cc-account-signout">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                    Sign out
+                                </button>
+                            </form>
+                        @else
+                            <div class="cc-account-menu-head">
+                                <p class="cc-account-menu-name">Welcome</p>
+                                <p class="cc-account-menu-email">Sign in to access purchases & downloads</p>
+                            </div>
+                            <a href="{{ route('login') }}" role="menuitem" class="cc-account-item">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                                Sign in
+                            </a>
+                            <a href="{{ route('register') }}" role="menuitem" class="cc-account-item cc-account-cta">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                                Create account
+                            </a>
+                        @endauth
+                    </div>
                 </div>
             </div>
         </div>
@@ -241,15 +298,44 @@
 
 <script>
 (function () {
+  // Mobile drawer
   var drawer = document.getElementById('cc-drawer');
   var openBtn = document.getElementById('cc-menu-open');
   var closeBtn = document.getElementById('cc-menu-close');
   var backdrop = document.getElementById('cc-drawer-backdrop');
-  function open() { if (drawer) { drawer.classList.add('is-open'); document.body.style.overflow = 'hidden'; } }
-  function close() { if (drawer) { drawer.classList.remove('is-open'); document.body.style.overflow = ''; } }
-  if (openBtn) openBtn.addEventListener('click', open);
-  if (closeBtn) closeBtn.addEventListener('click', close);
-  if (backdrop) backdrop.addEventListener('click', close);
+  function openDrawer() { if (drawer) { drawer.classList.add('is-open'); document.body.style.overflow = 'hidden'; } }
+  function closeDrawer() { if (drawer) { drawer.classList.remove('is-open'); document.body.style.overflow = ''; } }
+  if (openBtn) openBtn.addEventListener('click', openDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+  // Account dropdown
+  var wrap = document.getElementById('cc-account-wrap');
+  var toggle = document.getElementById('cc-account-toggle');
+  var menu = document.getElementById('cc-account-menu');
+  if (wrap && toggle && menu) {
+    function openMenu() {
+      menu.hidden = false;
+      wrap.classList.add('is-open');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      menu.hidden = true;
+      wrap.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+    toggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (menu.hidden) openMenu(); else closeMenu();
+    });
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenu();
+    });
+  }
 })();
 </script>
 @include('partials.json-ld')
