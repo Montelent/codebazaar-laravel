@@ -7,6 +7,7 @@ use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 
 class TicketAdminController extends Controller
 {
@@ -37,7 +38,7 @@ class TicketAdminController extends Controller
             'status' => 'nullable|in:open,pending,closed',
         ]);
 
-        SupportMessage::create([
+        $message = SupportMessage::create([
             'ticket_id' => $ticket->id,
             'user_id' => Auth::id(),
             'is_staff' => true,
@@ -49,7 +50,9 @@ class TicketAdminController extends Controller
             'last_reply_at' => now(),
         ]);
 
-        return back()->with('success', 'Reply sent.');
+        $this->notifyUserOfReply($ticket, $message);
+
+        return back()->with('success', 'Reply sent'.($this->lastMailOk ? ' and user notified by email' : '').'.');
     }
 
     public function updateStatus(Request $request, SupportTicket $ticket)
@@ -59,6 +62,41 @@ class TicketAdminController extends Controller
         ]);
         $ticket->update(['status' => $data['status']]);
 
-        return back()->with('success', 'Status updated.');
+        return back()->with('success', 'Ticket marked as '.$data['status'].'.');
+    }
+
+    protected bool $lastMailOk = false;
+
+    protected function notifyUserOfReply(SupportTicket $ticket, SupportMessage $message): void
+    {
+        $this->lastMailOk = false;
+        $email = $ticket->user?->email ?: $ticket->guest_email;
+        if (! $email) {
+            return;
+        }
+
+        $name = $ticket->user?->name ?: ($ticket->guest_name ?: 'Customer');
+        $url = route('support.show', $ticket);
+        $subject = '[Support #'.$ticket->id.'] Re: '.$ticket->subject;
+        $body = "Hello {$name},\n\n"
+            ."You received a new reply on your support ticket #{$ticket->id}.\n\n"
+            ."Subject: {$ticket->subject}\n\n"
+            ."--- Support reply ---\n"
+            .$message->body."\n"
+            ."---------------------\n\n"
+            ."Reply online (recommended):\n{$url}\n\n"
+            ."You can also reply to this email; include the ticket number #{$ticket->id} in your message so we can match it.\n\n"
+            ."— Support Team";
+
+        try {
+            Mail::raw($body, function ($mail) use ($email, $name, $subject, $ticket) {
+                $mail->to($email, $name)->subject($subject);
+                // Help agents match inbound replies
+                $mail->getHeaders()->addTextHeader('X-Ticket-ID', (string) $ticket->id);
+            });
+            $this->lastMailOk = true;
+        } catch (\Throwable) {
+            $this->lastMailOk = false;
+        }
     }
 }
