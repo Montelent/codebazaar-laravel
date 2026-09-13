@@ -99,6 +99,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])->name('verification.send');
     Route::prefix('account')->name('account.')->group(function () {
         Route::get('/', [AccountController::class, 'index'])->name('index');
+        Route::get('/settings', [AccountController::class, 'settings'])->name('settings');
+        Route::put('/settings/profile', [AccountController::class, 'updateProfile'])->name('settings.profile');
+        Route::put('/settings/password', [AccountController::class, 'updatePassword'])->name('settings.password');
         Route::get('/purchases', [AccountController::class, 'purchases'])->name('purchases');
         Route::get('/downloads', [AccountController::class, 'downloads'])->name('downloads');
         Route::get('/download/{itemId}', [AccountController::class, 'downloadFile'])->name('download');
