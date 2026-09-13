@@ -31,7 +31,6 @@ class MediaController extends Controller
 
         $service = new MediaStorageService;
 
-        // External / Drive URL
         if ($request->filled('external_url')) {
             $data = $request->validate([
                 'external_url' => 'required|string|max:2000',
@@ -42,7 +41,7 @@ class MediaController extends Controller
             $asset = $service->storeExternalUrl($data['external_url'], $disk, $request->user()->id, $data['alt'] ?? null);
 
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['ok' => true, 'asset' => $asset]);
+                return response()->json(['ok' => true, 'url' => $asset->url, 'asset' => $asset]);
             }
 
             return back()->with('success', 'Media URL added: '.$asset->url);
@@ -66,7 +65,7 @@ class MediaController extends Controller
         }
 
         if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['ok' => true, 'asset' => $asset]);
+            return response()->json(['ok' => true, 'url' => $asset->url, 'asset' => $asset]);
         }
 
         return back()->with('success', 'Uploaded ('.$asset->disk.'). URL: '.$asset->url);
@@ -82,7 +81,6 @@ class MediaController extends Controller
         return back()->with('success', 'Media deleted.');
     }
 
-    /** JSON list for product form media picker */
     public function json(Request $request)
     {
         if (! Schema::hasTable('media_assets')) {
