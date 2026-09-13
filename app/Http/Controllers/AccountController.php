@@ -17,29 +17,49 @@ class AccountController extends Controller
 
     public function purchases(Request $request)
     {
+        $userId = Auth::id();
         $email = Auth::user()?->email ?? $request->get('email');
+
         $orders = Order::with('items')
-            ->when($email, fn ($q) => $q->where('email', $email)->orWhere('user_id', Auth::id()))
             ->where('status', 'paid')
+            ->where(function ($q) use ($userId, $email) {
+                if ($userId) {
+                    $q->where('user_id', $userId);
+                }
+                if ($email) {
+                    $q->orWhere('email', $email);
+                }
+            })
             ->latest()
-            ->get();
+            ->get()
+            ->unique('id')
+            ->values();
 
         return view('account.purchases', compact('orders', 'email'));
     }
 
     public function downloads(Request $request)
     {
+        $userId = Auth::id();
         $email = Auth::user()?->email ?? $request->get('email');
+
         $items = OrderItem::query()
-            ->whereHas('order', function ($q) use ($email) {
+            ->whereHas('order', function ($q) use ($userId, $email) {
                 $q->where('status', 'paid')
-                    ->when($email, fn ($qq) => $qq->where(function ($w) use ($email) {
-                        $w->where('email', $email)->orWhere('user_id', Auth::id());
-                    }));
+                    ->where(function ($w) use ($userId, $email) {
+                        if ($userId) {
+                            $w->where('user_id', $userId);
+                        }
+                        if ($email) {
+                            $w->orWhere('email', $email);
+                        }
+                    });
             })
-            ->with('item')
+            ->with(['item', 'order'])
             ->latest()
-            ->get();
+            ->get()
+            ->unique(fn ($row) => $row->item_id.'|'.($row->license_type ?? 'regular'))
+            ->values();
 
         return view('account.downloads', compact('items'));
     }
