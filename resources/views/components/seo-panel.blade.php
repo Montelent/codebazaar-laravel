@@ -1,16 +1,18 @@
 @php
   $m = $model ?? null;
-  $prefix = $prefix ?? '';
   $val = function (string $key, $default = '') use ($m) {
       if (! $m) return old($key, $default);
       return old($key, $m->{$key} ?? $default);
   };
+  $contentTitle = old('title', $m->title ?? '');
+  $contentDesc = old('seo_description', $m->seo_description ?? '')
+      ?: old('excerpt', $m->excerpt ?? '');
 @endphp
 <section class="rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50/40 to-white p-5 shadow-sm" id="seo-panel">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <div>
       <h2 class="text-base font-bold text-slate-900">SEO</h2>
-      <p class="text-xs text-slate-500">Rank Math–style fields · title, meta, canonical, social &amp; robots</p>
+      <p class="text-xs text-slate-500">Rank Math–style fields · title, meta, canonical, social & robots</p>
     </div>
     <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">On-page SEO</span>
   </div>
@@ -82,31 +84,56 @@
 
   <div class="mt-6 rounded-lg border border-slate-200 bg-white p-4">
     <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Google preview</p>
-    <p class="mt-2 text-lg text-[#1a0dab]" id="seo-preview-title">Title preview</p>
+    <p class="mt-2 text-lg text-[#1a0dab] leading-snug" id="seo-preview-title">{{ $val('seo_title') ?: ($contentTitle ?: 'Title preview') }}</p>
     <p class="text-sm text-[#006621]" id="seo-preview-url">{{ url('/') }}</p>
-    <p class="mt-1 text-sm text-slate-600" id="seo-preview-desc">Description preview</p>
+    <p class="mt-1 text-sm text-slate-600 line-clamp-2" id="seo-preview-desc">{{ $val('seo_description') ?: ($contentDesc ?: 'Description preview') }}</p>
   </div>
 </section>
 
 @once
 @push('scripts')
 <script>
-(function(){
-  const title = document.getElementById('seo_title');
-  const desc = document.getElementById('seo_description');
-  const tc = document.getElementById('seo-title-count');
-  const dc = document.getElementById('seo-desc-count');
-  const pt = document.getElementById('seo-preview-title');
-  const pd = document.getElementById('seo-preview-desc');
-  function sync(){
-    if (title && tc) tc.textContent = (title.value || '').length;
-    if (desc && dc) dc.textContent = (desc.value || '').length;
-    if (pt) pt.textContent = (title && title.value) ? title.value : 'Title preview';
-    if (pd) pd.textContent = (desc && desc.value) ? desc.value : 'Description preview';
+(function () {
+  function byName(name) {
+    return document.querySelector('input[name="' + name + '"], textarea[name="' + name + '"]');
   }
-  if (title) title.addEventListener('input', sync);
-  if (desc) desc.addEventListener('input', sync);
+
+  function sync() {
+    var seoTitle = document.getElementById('seo_title');
+    var seoDesc = document.getElementById('seo_description');
+    var contentTitle = byName('title');
+    var excerpt = byName('excerpt');
+    var tc = document.getElementById('seo-title-count');
+    var dc = document.getElementById('seo-desc-count');
+    var pt = document.getElementById('seo-preview-title');
+    var pd = document.getElementById('seo-preview-desc');
+
+    var titleVal = (seoTitle && seoTitle.value.trim())
+      || (contentTitle && contentTitle.value.trim())
+      || 'Title preview';
+    var descVal = (seoDesc && seoDesc.value.trim())
+      || (excerpt && excerpt.value.trim())
+      || 'Description preview';
+
+    if (tc && seoTitle) tc.textContent = (seoTitle.value || '').length;
+    if (dc && seoDesc) dc.textContent = (seoDesc.value || '').length;
+    if (pt) pt.textContent = titleVal;
+    if (pd) pd.textContent = descVal;
+  }
+
+  ['seo_title', 'seo_description', 'title', 'excerpt'].forEach(function (name) {
+    var el = name === 'seo_title' || name === 'seo_description'
+      ? document.getElementById(name)
+      : byName(name);
+    if (el) {
+      el.addEventListener('input', sync);
+      el.addEventListener('change', sync);
+    }
+  });
+
+  // Run after TinyMCE may have loaded
   sync();
+  setTimeout(sync, 300);
 })();
 </script>
 @endpush
