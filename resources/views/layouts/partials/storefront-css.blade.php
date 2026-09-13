@@ -97,11 +97,14 @@
 .cc-browse-name{font-size:1.05rem;font-weight:700;color:#0f172a}
 .cc-browse-desc{font-size:13px;color:#64748b;line-height:1.4}
 
-/* Drawer */
+/* Drawer — site navigation only */
 .cc-drawer{position:fixed;inset:0;z-index:60;display:none}.cc-drawer.is-open{display:block}
 .cc-drawer-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
 .cc-drawer-panel{position:absolute;top:0;left:0;bottom:0;width:min(300px,88vw);background:#fff;box-shadow:8px 0 24px rgba(0,0,0,.12);padding:16px;overflow-y:auto}
+.cc-drawer-label{margin:14px 8px 6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
+.cc-drawer-label:first-of-type{margin-top:4px}
 .cc-drawer-panel a{display:flex;align-items:center;gap:10px;padding:12px 8px;color:#1e293b;text-decoration:none;font-weight:500;border-bottom:1px solid #f1f5f9;font-size:14px}
+.cc-drawer-panel a:hover{color:var(--cc-accent)}
 
 .cc-footer{background:var(--cc-footer-bg);color:var(--cc-footer-text);margin-top:56px}
 .cc-footer a{color:inherit;text-decoration:none}.cc-footer a:hover{color:#fff}
