@@ -1,3 +1,21 @@
+@php
+    $theme = \App\Models\SiteSetting::getValue('colors', [
+        'primary' => '#82b440',
+        'primary_hover' => '#6f9a36',
+        'secondary' => '#1b2838',
+        'header_bg' => '#ffffff',
+        'footer_bg' => '#1a1a1a',
+        'footer_text' => '#b0b0b0',
+        'announcement_bg' => '#2c3e50',
+    ]);
+    $cPrimary = $theme['primary'] ?? '#82b440';
+    $cHover = $theme['primary_hover'] ?? '#6f9a36';
+    $cSecondary = $theme['secondary'] ?? '#1b2838';
+    $cHeaderBg = $theme['header_bg'] ?? '#ffffff';
+    $cFooterBg = $theme['footer_bg'] ?? '#1a1a1a';
+    $cFooterText = $theme['footer_text'] ?? '#b0b0b0';
+    $cAnnBg = $theme['announcement_bg'] ?? '#2c3e50';
+@endphp
 <style>
 :root{--cc-green:{{ $cPrimary }};--cc-green-hover:{{ $cHover }};--cc-secondary:{{ $cSecondary }};--cc-header-bg:{{ $cHeaderBg }};--cc-footer-bg:{{ $cFooterBg }};--cc-footer-text:{{ $cFooterText }};--cc-announcement-bg:{{ $cAnnBg }};--cc-border:#e5e7eb;--cc-bg:#f5f7fa;--cc-text:#333;--cc-header-h:56px}
 *{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:var(--cc-bg);color:var(--cc-text);margin:0}a{color:inherit}
