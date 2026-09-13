@@ -52,13 +52,19 @@ class CheckoutController extends Controller
 
         // Idempotency: same cart + email within 2 minutes → reuse existing order (stops double-submit)
         $fingerprint = $this->cartFingerprint($cart, $email, $method);
+        $userId = Auth::id();
+
         $recent = Order::query()
-            ->where('email', $email)
-            ->when(Auth::id(), fn ($q) => $q->orWhere('user_id', Auth::id()))
             ->where('total', $total)
             ->where('payment_provider', strtolower($method))
             ->where('created_at', '>=', now()->subMinutes(2))
             ->whereIn('status', ['pending', 'paid'])
+            ->where(function ($q) use ($email, $userId) {
+                $q->where('email', $email);
+                if ($userId) {
+                    $q->orWhere('user_id', $userId);
+                }
+            })
             ->latest('id')
             ->first();
 
@@ -233,7 +239,6 @@ class CheckoutController extends Controller
             return back()->with('error', 'Stripe is enabled but secret key is missing. Configure it in Admin → Payments.');
         }
 
-        // Reuse existing Stripe session if still open
         if (! empty($order->stripe_session_id)) {
             try {
                 \Stripe\Stripe::setApiKey($secret);
