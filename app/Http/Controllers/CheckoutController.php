@@ -50,6 +50,34 @@ class CheckoutController extends Controller
             $method = 'FREE';
         }
 
+        // Idempotency: same cart + email within 2 minutes → reuse existing order (stops double-submit)
+        $fingerprint = $this->cartFingerprint($cart, $email, $method);
+        $recent = Order::query()
+            ->where('email', $email)
+            ->when(Auth::id(), fn ($q) => $q->orWhere('user_id', Auth::id()))
+            ->where('total', $total)
+            ->where('payment_provider', strtolower($method))
+            ->where('created_at', '>=', now()->subMinutes(2))
+            ->whereIn('status', ['pending', 'paid'])
+            ->latest('id')
+            ->first();
+
+        if ($recent && session('checkout_fingerprint') === $fingerprint) {
+            if ($recent->status === 'paid' || $isFree || $method === 'CREDITS') {
+                session()->forget('cart');
+
+                return redirect()->route('account.purchases')
+                    ->with('success', 'Order already completed.');
+            }
+
+            return match ($method) {
+                'STRIPE' => $this->payWithStripe($recent, $cart, $email),
+                'PAYSTACK' => $this->payWithPaystack($recent, $email),
+                'MONNIFY' => $this->payWithMonnify($recent, $email),
+                default => $this->payManual($recent, $method),
+            };
+        }
+
         if (! $isFree && $method === 'CREDITS') {
             if (! Auth::check()) {
                 return back()->with('error', 'Log in to pay with credits.');
@@ -101,6 +129,8 @@ class CheckoutController extends Controller
             return $order;
         });
 
+        session(['checkout_fingerprint' => $fingerprint]);
+
         if ($isFree || $method === 'CREDITS') {
             session()->forget('cart');
 
@@ -120,17 +150,18 @@ class CheckoutController extends Controller
         $sessionId = $request->get('session_id');
         $ref = $request->get('reference') ?: $request->get('paymentReference');
 
+        $order = null;
+
         if ($sessionId) {
             $order = Order::where('stripe_session_id', $sessionId)->first();
-            if ($order) {
+            if ($order && $order->status !== 'paid') {
                 $order->update(['status' => 'paid']);
             }
         }
 
-        if ($ref) {
-            $order = Order::where('payment_reference', $ref)->orWhere('id', $ref)->first();
+        if ($ref && ! $order) {
+            $order = Order::where('payment_reference', $ref)->first();
             if ($order && $order->status !== 'paid') {
-                // Verify Paystack if applicable
                 if (strtolower((string) $order->payment_provider) === 'paystack') {
                     $secret = data_get(SiteSetting::getValue('paystack', []), 'secret_key');
                     if ($secret) {
@@ -145,9 +176,22 @@ class CheckoutController extends Controller
             }
         }
 
+        // Never create a new order on success — only mark existing paid
         session()->forget('cart');
+        session()->forget('checkout_fingerprint');
 
         return redirect()->route('account.purchases')->with('success', 'Payment received. Thank you!');
+    }
+
+    protected function cartFingerprint(array $cart, string $email, string $method): string
+    {
+        $parts = [$email, strtoupper($method)];
+        ksort($cart);
+        foreach ($cart as $key => $row) {
+            $parts[] = $key.'|'.($row['item_id'] ?? '').'|'.($row['license_type'] ?? '').'|'.($row['qty'] ?? 1).'|'.($row['price'] ?? 0);
+        }
+
+        return hash('sha256', implode(';', $parts));
     }
 
     protected function enabledMethods(): array
@@ -155,7 +199,6 @@ class CheckoutController extends Controller
         $methods = SiteSetting::getValue('payment_methods', PaymentSettingsController::defaults());
         $list = array_values(array_filter($methods, fn ($m) => ! empty($m['enabled'])));
 
-        // Always offer credits when logged in (virtual method)
         if (Auth::check()) {
             array_unshift($list, [
                 'provider' => 'CREDITS',
@@ -188,6 +231,19 @@ class CheckoutController extends Controller
 
         if (empty($secret)) {
             return back()->with('error', 'Stripe is enabled but secret key is missing. Configure it in Admin → Payments.');
+        }
+
+        // Reuse existing Stripe session if still open
+        if (! empty($order->stripe_session_id)) {
+            try {
+                \Stripe\Stripe::setApiKey($secret);
+                $existing = \Stripe\Checkout\Session::retrieve($order->stripe_session_id);
+                if (! empty($existing->url) && ($existing->status ?? '') === 'open') {
+                    return redirect($existing->url);
+                }
+            } catch (\Throwable $e) {
+                // create a new session below
+            }
         }
 
         \Stripe\Stripe::setApiKey($secret);
@@ -227,9 +283,8 @@ class CheckoutController extends Controller
             return back()->with('error', 'Paystack is enabled but secret key is missing.');
         }
 
-        // Amount in kobo/cents
         $amount = (int) round($order->total * 100);
-        $ref = 'CBZ-'.$order->id.'-'.Str::upper(Str::random(8));
+        $ref = $order->payment_reference ?: ('CBZ-'.$order->id.'-'.Str::upper(Str::random(8)));
         $order->update(['payment_reference' => $ref]);
 
         $res = Http::withToken($secret)->post('https://api.paystack.co/transaction/initialize', [
@@ -268,7 +323,7 @@ class CheckoutController extends Controller
             return back()->with('error', 'Monnify authentication failed.');
         }
 
-        $ref = 'CBZ-'.$order->id.'-'.Str::upper(Str::random(8));
+        $ref = $order->payment_reference ?: ('CBZ-'.$order->id.'-'.Str::upper(Str::random(8)));
         $order->update(['payment_reference' => $ref]);
 
         $init = Http::withToken($accessToken)->post($base.'/api/v1/merchant/transactions/init-transaction', [
