@@ -1,6 +1,13 @@
 @extends('layouts.admin')
 @section('title', 'General settings')
 @section('content')
+@php
+  try {
+    $allCategories = \App\Models\Category::query()->whereNull('parent_id')->orderBy('name')->get(['id','name','slug','description']);
+  } catch (\Throwable $e) {
+    $allCategories = collect();
+  }
+@endphp
 <a href="{{ route('admin.settings.hub') }}" class="text-sm text-emerald-700">← Settings hub</a>
 <form method="post" action="{{ route('admin.settings.general.update') }}" class="mx-auto mt-4 max-w-3xl space-y-8">
 @csrf @method('PUT')
@@ -22,28 +29,46 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
             <h2 class="font-semibold">Browse by category</h2>
-            <p class="mt-1 text-xs text-slate-500">Cards on the homepage. Icon can be an emoji or image URL. Leave title empty to remove a row on save.</p>
+            <p class="mt-1 text-xs text-slate-500">
+              Homepage category cards. Prefer linking to a real category (<code class="rounded bg-slate-100 px-1">/category/your-slug</code>), not search.
+              Clear the title and save to remove a card, or use Remove.
+            </p>
         </div>
-        <button type="button" id="add-cat-row" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800">+ Add card</button>
+        <div class="flex flex-wrap gap-2">
+          @if($allCategories->count())
+          <select id="pick-category" class="rounded-lg border px-2 py-1.5 text-sm">
+            <option value="">Fill from category…</option>
+            @foreach($allCategories as $cat)
+              <option
+                value="{{ $cat->id }}"
+                data-name="{{ e($cat->name) }}"
+                data-slug="{{ e($cat->slug) }}"
+                data-desc="{{ e(\Illuminate\Support\Str::limit(strip_tags((string) $cat->description), 60)) }}"
+              >{{ $cat->name }}</option>
+            @endforeach
+          </select>
+          @endif
+          <button type="button" id="add-cat-row" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800">+ Add card</button>
+        </div>
     </div>
     <div id="cat-rows" class="mt-4 space-y-3">
         @php
           $rows = is_array($browseCategories ?? null) ? $browseCategories : [];
           if (count($rows) === 0) {
-            $rows = [['icon'=>'','title'=>'','subtitle'=>'','url'=>'']];
+            $rows = [['icon'=>'📦','title'=>'','subtitle'=>'','url'=>'']];
           }
         @endphp
         @foreach($rows as $i => $row)
         <div class="cat-row grid gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3 sm:grid-cols-12">
             <div class="sm:col-span-2">
-                <label class="text-[11px] font-medium text-slate-500">Icon</label>
-                <input name="cat_icon[]" value="{{ $row['icon'] ?? '' }}" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="🟦 or URL">
+                <label class="text-[11px] font-medium text-slate-500">Icon (emoji or image URL)</label>
+                <input name="cat_icon[]" value="{{ $row['icon'] ?? '' }}" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="🟦">
             </div>
             <div class="sm:col-span-3">
                 <label class="text-[11px] font-medium text-slate-500">Title</label>
                 <input name="cat_title[]" value="{{ $row['title'] ?? '' }}" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="WordPress">
             </div>
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
                 <label class="text-[11px] font-medium text-slate-500">Subtitle</label>
                 <input name="cat_subtitle[]" value="{{ $row['subtitle'] ?? '' }}" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="Themes, plugins…">
             </div>
@@ -51,9 +76,13 @@
                 <label class="text-[11px] font-medium text-slate-500">Link URL</label>
                 <input name="cat_url[]" value="{{ $row['url'] ?? '' }}" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="/category/wordpress">
             </div>
+            <div class="flex items-end sm:col-span-1">
+                <button type="button" class="remove-cat-row w-full rounded-lg border border-red-100 bg-red-50 px-2 py-2 text-xs font-medium text-red-700 hover:bg-red-100">Remove</button>
+            </div>
         </div>
         @endforeach
     </div>
+    <p class="mt-3 text-xs text-slate-500">Tip: create categories under <strong>Admin → Categories</strong>, then use “Fill from category” so the URL is correct.</p>
 </section>
 
 <section class="rounded-xl border bg-white p-4 sm:p-6">
@@ -104,7 +133,7 @@
             <label class="text-sm font-medium">Footer background</label>
             <div class="mt-1 flex items-center gap-2">
                 <input type="color" name="color_footer_bg" value="{{ $colors['footer_bg'] ?? '#0b1220' }}" class="h-10 w-14 cursor-pointer rounded border p-0.5">
-                <input type="text" value="{{ $colors['footer_text'] ?? '#0b1220' }}" class="w-full rounded-lg border px-2 py-2 font-mono text-xs" oninput="this.previousElementSibling.value=this.value">
+                <input type="text" value="{{ $colors['footer_bg'] ?? '#0b1220' }}" class="w-full rounded-lg border px-2 py-2 font-mono text-xs" oninput="this.previousElementSibling.value=this.value">
             </div>
         </div>
         <div>
@@ -140,17 +169,61 @@
 (function () {
   var wrap = document.getElementById('cat-rows');
   var btn = document.getElementById('add-cat-row');
-  if (!wrap || !btn) return;
-  btn.addEventListener('click', function () {
-    var div = document.createElement('div');
-    div.className = 'cat-row grid gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3 sm:grid-cols-12';
-    div.innerHTML =
-      '<div class="sm:col-span-2"><label class="text-[11px] font-medium text-slate-500">Icon</label><input name="cat_icon[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="icon"></div>' +
-      '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Title</label><input name="cat_title[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="WordPress"></div>' +
-      '<div class="sm:col-span-4"><label class="text-[11px] font-medium text-slate-500">Subtitle</label><input name="cat_subtitle[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="Themes, plugins"></div>' +
-      '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Link URL</label><input name="cat_url[]" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="/category/wordpress"></div>';
-    wrap.appendChild(div);
+  var pick = document.getElementById('pick-category');
+  if (!wrap) return;
+
+  function rowHtml(data) {
+    data = data || {};
+    return (
+      '<div class="cat-row grid gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3 sm:grid-cols-12">' +
+        '<div class="sm:col-span-2"><label class="text-[11px] font-medium text-slate-500">Icon (emoji or image URL)</label><input name="cat_icon[]" value="' + (data.icon || '📦') + '" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="🟦"></div>' +
+        '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Title</label><input name="cat_title[]" value="' + (data.title || '') + '" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="WordPress"></div>' +
+        '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Subtitle</label><input name="cat_subtitle[]" value="' + (data.subtitle || '') + '" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="Themes, plugins"></div>' +
+        '<div class="sm:col-span-3"><label class="text-[11px] font-medium text-slate-500">Link URL</label><input name="cat_url[]" value="' + (data.url || '') + '" class="mt-1 w-full rounded-lg border px-2 py-2 text-sm" placeholder="/category/wordpress"></div>' +
+        '<div class="flex items-end sm:col-span-1"><button type="button" class="remove-cat-row w-full rounded-lg border border-red-100 bg-red-50 px-2 py-2 text-xs font-medium text-red-700 hover:bg-red-100">Remove</button></div>' +
+      '</div>'
+    );
+  }
+
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var div = document.createElement('div');
+      div.innerHTML = rowHtml();
+      wrap.appendChild(div.firstChild);
+    });
+  }
+
+  wrap.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('remove-cat-row')) {
+      var row = t.closest('.cat-row');
+      if (row) row.remove();
+      if (!wrap.querySelector('.cat-row')) {
+        var d = document.createElement('div');
+        d.innerHTML = rowHtml();
+        wrap.appendChild(d.firstChild);
+      }
+    }
   });
+
+  if (pick) {
+    pick.addEventListener('change', function () {
+      var opt = pick.options[pick.selectedIndex];
+      if (!opt || !opt.value) return;
+      var name = opt.getAttribute('data-name') || '';
+      var slug = opt.getAttribute('data-slug') || '';
+      var desc = opt.getAttribute('data-desc') || ('Browse ' + name);
+      var div = document.createElement('div');
+      div.innerHTML = rowHtml({
+        icon: '📦',
+        title: name,
+        subtitle: desc,
+        url: '/category/' + slug
+      });
+      wrap.appendChild(div.firstChild);
+      pick.selectedIndex = 0;
+    });
+  }
 })();
 </script>
 @endpush
