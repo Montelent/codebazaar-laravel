@@ -25,32 +25,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Product license verification (buyer installs)
+    | Product license verification
     |--------------------------------------------------------------------------
     |
-    | Buyer sites NEVER receive your Envato personal token or JigSource API key.
-    | They only call the seller license server (default: jigsource.store).
+    | Buyer installs call the seller license server only.
+    | JigSource's /api/purchases/validation requires an "api_key" field on
+    | every request — that is a product client key for this item, not the
+    | buyer's secret. Prefer rotating it if the package is leaked.
     |
-    | That server is responsible for verifying Envato and/or JigSource codes
-    | using secrets stored only on your infrastructure.
-    |
-    | Optional .env overrides (author demo / self-hosted license server only):
-    |   LICENSE_VERIFY_URL, LICENSE_PRODUCT, LICENSE_ITEM_ID
-    |   ENVATO_PERSONAL_TOKEN, JIGSOURCE_API_KEY — do NOT ship these in the zip
+    | Envato personal tokens are NEVER shipped. Envato codes should be
+    | verified on the license server (jigsource) when possible.
     |
     */
     'license' => [
         'verify_url' => env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
         'product' => env('LICENSE_PRODUCT', 'codebazaar'),
         'item_id' => env('LICENSE_ITEM_ID'),
-        // Optional public client id if your license server requires one (not a secret API key)
         'client_id' => env('LICENSE_CLIENT_ID'),
+        // Required by jigsource.store validation API (body field: api_key)
+        'api_key' => env('LICENSE_API_KEY', env('JIGSOURCE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo')),
         'disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
     ],
 
     /*
-    | Author-only overrides (empty in the distributed package).
-    | Use on YOUR own server if you run a private license proxy.
+    | Optional direct Envato (author demo server .env only — empty in zip)
     */
     'envato' => [
         'token' => env('ENVATO_PERSONAL_TOKEN'),
@@ -61,7 +59,7 @@ return [
 
     'jigsource' => [
         'verify_url' => env('JIGSOURCE_VERIFY_URL', env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation')),
-        'api_key' => env('JIGSOURCE_API_KEY'),
+        'api_key' => env('JIGSOURCE_API_KEY', env('LICENSE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo')),
         'item_id' => env('JIGSOURCE_ITEM_ID', env('LICENSE_ITEM_ID')),
         'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
         'product_slug' => env('JIGSOURCE_PRODUCT', env('LICENSE_PRODUCT', 'codebazaar')),
