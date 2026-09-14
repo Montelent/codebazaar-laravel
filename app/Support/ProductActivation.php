@@ -4,24 +4,18 @@ namespace App\Support;
 
 use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Product activation for commercial installs.
- *
- * JigSource item: CodeBazaar (#1229)
- * https://jigsource.store/items/codebazaar-sell-code-scripts-digital-assets-laravel-marketplace/1229
+ * Product activation — JigSource codes must be for CodeBazaar item #1229 only.
  */
 class ProductActivation
 {
     public const SETTING_KEY = 'product_activation';
 
-    /** Default JigSource item for CodeBazaar. */
     public const JIGSOURCE_ITEM_ID = '1229';
 
-    /**
-     * SHA-256 hex of: cbz-master-v1|{author_master_passphrase}
-     */
     private const MASTER_KEY_HASH = 'b5f42eef7ade7f8256a03f6e3bd441d9950b54f290e653cb57b7455d635687dc';
 
     public static function status(): array
@@ -114,7 +108,6 @@ class ProductActivation
             return ['ok' => false, 'message' => 'Please enter your purchase code.'];
         }
 
-        // 1) Author master
         $attempt = hash('sha256', 'cbz-master-v1|'.$code);
         if (hash_equals(self::MASTER_KEY_HASH, $attempt)) {
             self::persist([
@@ -130,7 +123,6 @@ class ProductActivation
             return ['ok' => true, 'message' => 'License activated successfully.', 'type' => 'master'];
         }
 
-        // 2) Optional offline JS1 signed keys
         if (self::looksLikeJigsourceSignedKey($code)) {
             $signed = self::activateJigsourceSigned($code);
             if ($signed['ok'] || ($signed['hard_fail'] ?? false)) {
@@ -138,13 +130,11 @@ class ProductActivation
             }
         }
 
-        // 3) JigSource / license server
         $server = self::activateViaLicenseServer($code);
         if ($server['ok']) {
             return $server;
         }
 
-        // 4) Author-only direct Envato
         if (self::looksLikeUuidPurchaseCode($code) && trim((string) config('services.envato.token', '')) !== '') {
             $envato = self::activateEnvatoDirect($code);
             if ($envato['ok']) {
@@ -172,107 +162,120 @@ class ProductActivation
     }
 
     /**
-     * Pull item id / name from varied API response shapes.
+     * Deep-scan API body for item id + name (JigSource response shapes vary).
      *
      * @param  array<string,mixed>  $body
-     * @return array{0:string,1:string,2:string} [itemId, itemName, slug]
+     * @return array{id:string,name:string,slug:string}
      */
     protected static function extractPurchaseItem(array $body): array
     {
-        $purchase = data_get($body, 'data.purchase');
-        if (! is_array($purchase)) {
-            $purchase = data_get($body, 'purchase');
-        }
-        if (! is_array($purchase)) {
-            $purchase = data_get($body, 'data');
-        }
-        if (! is_array($purchase)) {
-            $purchase = $body;
-        }
+        $id = '';
+        $name = '';
+        $slug = '';
 
-        $item = data_get($purchase, 'item');
-        if (! is_array($item)) {
-            $item = data_get($body, 'data.item');
-        }
-        if (! is_array($item)) {
-            $item = data_get($body, 'item');
-        }
-        if (! is_array($item)) {
-            $item = [];
-        }
+        $itemObjects = [];
 
-        $idCandidates = [
-            data_get($item, 'id'),
-            data_get($purchase, 'item_id'),
-            data_get($purchase, 'itemId'),
-            data_get($body, 'data.item_id'),
-            data_get($body, 'item_id'),
-            data_get($body, 'data.purchase.item_id'),
-            data_get($body, 'data.purchase.item.id'),
+        $candidates = [
+            data_get($body, 'data.purchase.item'),
+            data_get($body, 'purchase.item'),
+            data_get($body, 'data.item'),
+            data_get($body, 'item'),
+            data_get($body, 'data.purchase'),
+            data_get($body, 'purchase'),
+            data_get($body, 'data'),
         ];
 
-        $saleItemId = '';
-        foreach ($idCandidates as $candidate) {
-            if ($candidate !== null && $candidate !== '') {
-                $saleItemId = (string) $candidate;
-                break;
+        foreach ($candidates as $node) {
+            if (is_array($node)) {
+                $itemObjects[] = $node;
             }
         }
 
-        $nameCandidates = [
-            data_get($item, 'name'),
-            data_get($purchase, 'item_name'),
-            data_get($purchase, 'product_name'),
-            data_get($body, 'data.item.name'),
-            data_get($body, 'item_name'),
-        ];
+        foreach ($itemObjects as $node) {
+            if ($id === '') {
+                foreach (['id', 'item_id', 'itemId', 'product_id', 'productId'] as $key) {
+                    if (isset($node[$key]) && $node[$key] !== '' && $node[$key] !== null) {
+                        // Prefer values that look like the item id, not purchase UUIDs
+                        $val = (string) $node[$key];
+                        if (! preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-/i', $val)) {
+                            $id = $val;
+                            break;
+                        }
+                    }
+                }
+            }
 
-        $saleItemName = '';
-        foreach ($nameCandidates as $candidate) {
-            if (is_string($candidate) && trim($candidate) !== '') {
-                $saleItemName = trim($candidate);
-                break;
+            if ($name === '') {
+                foreach (['name', 'item_name', 'product_name', 'title'] as $key) {
+                    if (! empty($node[$key]) && is_string($node[$key])) {
+                        $name = trim($node[$key]);
+                        break;
+                    }
+                }
+            }
+
+            if ($slug === '') {
+                foreach (['slug', 'product_slug', 'permalink'] as $key) {
+                    if (! empty($node[$key]) && is_string($node[$key])) {
+                        $slug = strtolower(trim($node[$key]));
+                        break;
+                    }
+                }
+            }
+
+            // Nested item inside purchase
+            if (isset($node['item']) && is_array($node['item'])) {
+                $inner = $node['item'];
+                if ($id === '' && isset($inner['id']) && $inner['id'] !== '' && $inner['id'] !== null) {
+                    $id = (string) $inner['id'];
+                }
+                if ($name === '' && ! empty($inner['name']) && is_string($inner['name'])) {
+                    $name = trim($inner['name']);
+                }
+                if ($slug === '' && ! empty($inner['slug']) && is_string($inner['slug'])) {
+                    $slug = strtolower(trim($inner['slug']));
+                }
             }
         }
 
-        $slugCandidates = [
-            data_get($item, 'slug'),
-            data_get($purchase, 'product_slug'),
-            data_get($purchase, 'slug'),
-            data_get($body, 'data.product_slug'),
-        ];
-
-        $saleSlug = '';
-        foreach ($slugCandidates as $candidate) {
-            if (is_string($candidate) && trim($candidate) !== '') {
-                $saleSlug = strtolower(trim($candidate));
-                break;
-            }
+        // Last resort: walk whole tree for item.id pattern
+        if ($id === '') {
+            $id = self::findFirstNumericItemId($body);
         }
 
-        return [$saleItemId, $saleItemName, $saleSlug];
+        return ['id' => $id, 'name' => $name, 'slug' => $slug];
     }
 
     /**
-     * True when the sale is for CodeBazaar (item 1229 or name/slug match).
+     * @param  mixed  $node
      */
-    protected static function isCodeBazaarPurchase(string $saleItemId, string $saleItemName, string $saleSlug, string $expectedItemId): bool
+    protected static function findFirstNumericItemId(mixed $node, int $depth = 0): string
     {
-        if ($saleItemId !== '' && (string) $saleItemId === (string) $expectedItemId) {
-            return true;
+        if ($depth > 8 || ! is_array($node)) {
+            return '';
         }
 
-        $haystack = strtolower($saleItemName.' '.$saleSlug);
-
-        if ($haystack !== '' && (
-            str_contains($haystack, 'codebazaar')
-            || str_contains($haystack, 'code bazaar')
-            || str_contains($haystack, 'code-bazaar')
-        )) {
-            return true;
+        if (array_key_exists('id', $node) && is_numeric($node['id'])) {
+            // Heuristic: item ids are small integers; skip large order ids if any
+            $n = (int) $node['id'];
+            if ($n > 0 && $n < 100000000) {
+                // Prefer if sibling looks like an item (has name/slug/category)
+                if (isset($node['name']) || isset($node['slug']) || isset($node['category'])) {
+                    return (string) $node['id'];
+                }
+            }
         }
 
-        return false;
+        foreach ($node as $child) {
+            if (is_array($child)) {
+                $found = self::findFirstNumericItemId($child, $depth + 1);
+                if ($found !== '') {
+                    return $found;
+                }
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -283,7 +286,7 @@ class ProductActivation
         $domain = self::currentDomain();
         $apiUrl = rtrim((string) config('services.license.verify_url', 'https://jigsource.store/api/purchases/validation'), '/');
         $product = (string) config('services.license.product', 'codebazaar');
-        $itemId = self::expectedItemId();
+        $expectedId = self::expectedItemId();
         $clientId = trim((string) config('services.license.client_id', ''));
 
         $apiKey = trim((string) (
@@ -304,7 +307,7 @@ class ProductActivation
             'domain' => $domain,
             'product' => $product,
             'product_slug' => $product,
-            'item_id' => $itemId,
+            'item_id' => $expectedId,
         ];
         if ($clientId !== '') {
             $payload['client_id'] = $clientId;
@@ -334,15 +337,16 @@ class ProductActivation
         $apiMessage = data_get($body, 'msg')
             ?: data_get($body, 'message')
             ?: data_get($body, 'error')
-            ?: data_get($body, 'errors.api_key.0')
-            ?: data_get($body, 'errors.purchase_code.0');
+            ?: data_get($body, 'errors.purchase_code.0')
+            ?: data_get($body, 'errors.api_key.0');
 
         if ($status === 'error' || $response->status() === 404) {
-            $msg = is_string($apiMessage) && $apiMessage !== ''
-                ? $apiMessage
-                : 'This purchase code is invalid.';
-
-            return ['ok' => false, 'message' => $msg];
+            return [
+                'ok' => false,
+                'message' => is_string($apiMessage) && $apiMessage !== ''
+                    ? $apiMessage
+                    : 'This purchase code is invalid.',
+            ];
         }
 
         $isSuccess = $status === 'success'
@@ -350,39 +354,62 @@ class ProductActivation
             || (bool) data_get($body, 'success');
 
         if (! $isSuccess) {
-            $msg = is_string($apiMessage) && $apiMessage !== ''
-                ? $apiMessage
-                : 'This purchase code could not be verified.';
-
-            return ['ok' => false, 'message' => $msg];
-        }
-
-        [$saleItemId, $saleItemName, $saleSlug] = self::extractPurchaseItem($body);
-
-        // Reject only when we can prove it is a different product
-        if ($saleItemId !== '' && (string) $saleItemId !== (string) $itemId) {
-            $other = $saleItemName !== '' ? $saleItemName : 'another product';
-
             return [
                 'ok' => false,
-                'message' => 'This purchase code belongs to '.$other.'. Please use a CodeBazaar purchase code.',
+                'message' => is_string($apiMessage) && $apiMessage !== ''
+                    ? $apiMessage
+                    : 'This purchase code could not be verified.',
             ];
         }
 
-        if ($saleItemId === '' && $saleItemName !== '' && ! self::isCodeBazaarPurchase('', $saleItemName, $saleSlug, $itemId)) {
+        $item = self::extractPurchaseItem($body);
+        $saleItemId = $item['id'];
+        $saleItemName = $item['name'];
+        $saleSlug = $item['slug'];
+
+        // STRICT: must prove this sale is CodeBazaar (#1229)
+        $idMatches = $saleItemId !== '' && (string) $saleItemId === (string) $expectedId;
+        $nameMatches = $saleItemName !== '' && (
+            str_contains(strtolower($saleItemName), 'codebazaar')
+            || str_contains(strtolower($saleItemName), 'code bazaar')
+        );
+        $slugMatches = $saleSlug !== '' && str_contains($saleSlug, 'codebazaar');
+
+        if ($saleItemId !== '' && ! $idMatches) {
+            $label = $saleItemName !== '' ? $saleItemName : 'another product';
+
             return [
                 'ok' => false,
-                'message' => 'This purchase code belongs to '.$saleItemName.'. Please use a CodeBazaar purchase code.',
+                'message' => 'This purchase code belongs to '.$label.'. Please use a CodeBazaar purchase code.',
             ];
         }
 
-        // If API returned success but no item fields, still accept only when
-        // we cannot detect a different product (JigSource may omit item on some responses).
-        // Prefer accept when status=success after sending item_id in the request.
+        if (! $idMatches && ! $nameMatches && ! $slugMatches) {
+            try {
+                Log::warning('CodeBazaar activation: success without matching item', [
+                    'expected_item_id' => $expectedId,
+                    'parsed_item_id' => $saleItemId,
+                    'parsed_name' => $saleItemName,
+                    'parsed_slug' => $saleSlug,
+                    'body_keys' => array_keys($body),
+                    'data_keys' => is_array(data_get($body, 'data')) ? array_keys((array) data_get($body, 'data')) : [],
+                ]);
+            } catch (\Throwable) {
+                //
+            }
+
+            return [
+                'ok' => false,
+                'message' => 'This purchase code does not belong to CodeBazaar.',
+            ];
+        }
 
         $purchase = data_get($body, 'data.purchase');
         if (! is_array($purchase)) {
-            $purchase = data_get($body, 'purchase') ?: [];
+            $purchase = data_get($body, 'purchase');
+        }
+        if (! is_array($purchase)) {
+            $purchase = [];
         }
 
         self::persist([
@@ -394,7 +421,7 @@ class ProductActivation
             'buyer' => data_get($purchase, 'buyer')
                 ?: data_get($purchase, 'email')
                 ?: data_get($body, 'data.buyer'),
-            'item_id' => $saleItemId !== '' ? $saleItemId : $itemId,
+            'item_id' => $idMatches ? $saleItemId : $expectedId,
             'item_name' => $saleItemName !== '' ? $saleItemName : 'CodeBazaar',
             'license' => data_get($purchase, 'license_type') ?: data_get($purchase, 'license'),
             'supported_until' => data_get($purchase, 'supported_until'),
@@ -443,7 +470,7 @@ class ProductActivation
         $domain = self::currentDomain();
         $itemId = self::expectedItemId();
 
-        if (! empty($payload['item_id']) && (string) $payload['item_id'] !== (string) $itemId) {
+        if (empty($payload['item_id']) || (string) $payload['item_id'] !== (string) $itemId) {
             return ['ok' => false, 'message' => 'This license key is for a different product.', 'hard_fail' => true];
         }
 
@@ -462,7 +489,7 @@ class ProductActivation
             'code_hint' => Str::mask($code, '*', 6, max(0, strlen($code) - 10)),
             'code_hash' => hash('sha256', $code),
             'buyer' => $payload['email'] ?? $payload['buyer'] ?? null,
-            'item_id' => $payload['item_id'] ?? $itemId,
+            'item_id' => $itemId,
             'source' => 'jigsource',
             'activated_at' => now()->toIso8601String(),
             'verified_via' => 'jigsource_signed',
@@ -501,11 +528,7 @@ class ProductActivation
             return ['ok' => false, 'message' => 'This purchase code is invalid.'];
         }
 
-        if (in_array($response->status(), [401, 403], true)) {
-            return ['ok' => false, 'message' => 'License verification is temporarily unavailable. Please try again later.'];
-        }
-
-        if (! $response->successful()) {
+        if (in_array($response->status(), [401, 403], true) || ! $response->successful()) {
             return ['ok' => false, 'message' => 'This purchase code could not be verified.'];
         }
 
