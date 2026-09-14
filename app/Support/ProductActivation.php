@@ -9,19 +9,17 @@ use Illuminate\Support\Str;
 /**
  * Product activation for commercial installs.
  *
- * Buyer installs do NOT contain Envato personal tokens.
- * Live verification goes to the seller license server:
- *   POST {LICENSE_VERIFY_URL}  (default https://jigsource.store/api/purchases/validation)
+ * JigSource codes are bound to item ID 1229 only:
+ * https://jigsource.store/items/codebazaar-sell-code-scripts-digital-assets-laravel-marketplace/1229
  *
- * JigSource requires an "api_key" field on every validation request.
- * That product client key is configured under services.license.api_key.
- *
- * Local author tools (optional, only if set in the server's own .env):
- *   ENVATO_PERSONAL_TOKEN — direct Envato API (author demo / private proxy)
+ * Codes for any other JigSource product are rejected even if the API returns success.
  */
 class ProductActivation
 {
     public const SETTING_KEY = 'product_activation';
+
+    /** Default JigSource item for CodeBazaar (URL ends with /1229). */
+    public const JIGSOURCE_ITEM_ID = '1229';
 
     /**
      * SHA-256 hex of: cbz-master-v1|{author_master_passphrase}
@@ -98,6 +96,20 @@ class ProductActivation
     }
 
     /**
+     * Expected JigSource / license-server item id for this product.
+     */
+    protected static function expectedItemId(): string
+    {
+        $id = trim((string) (
+            config('services.license.item_id')
+            ?: config('services.jigsource.item_id')
+            ?: self::JIGSOURCE_ITEM_ID
+        ));
+
+        return $id !== '' ? $id : self::JIGSOURCE_ITEM_ID;
+    }
+
+    /**
      * @return array{ok:bool,message:string,type?:string}
      */
     public static function activate(string $code): array
@@ -131,13 +143,13 @@ class ProductActivation
             }
         }
 
-        // 3) Seller license server (JigSource) — always send api_key field
+        // 3) Seller license server (JigSource) — item-bound
         $server = self::activateViaLicenseServer($code);
         if ($server['ok']) {
             return $server;
         }
 
-        // 4) Author-only direct Envato (ENVATO_PERSONAL_TOKEN in server .env only)
+        // 4) Author-only direct Envato
         if (self::looksLikeUuidPurchaseCode($code) && trim((string) config('services.envato.token', '')) !== '') {
             $envato = self::activateEnvatoDirect($code);
             if ($envato['ok']) {
@@ -165,7 +177,7 @@ class ProductActivation
     }
 
     /**
-     * POST license server. JigSource requires body field "api_key".
+     * POST license server. Only CodeBazaar item (1229) is accepted.
      *
      * @return array{ok:bool,message:string,type?:string}
      */
@@ -174,7 +186,7 @@ class ProductActivation
         $domain = self::currentDomain();
         $apiUrl = rtrim((string) config('services.license.verify_url', 'https://jigsource.store/api/purchases/validation'), '/');
         $product = (string) config('services.license.product', 'codebazaar');
-        $itemId = trim((string) config('services.license.item_id', ''));
+        $itemId = self::expectedItemId();
         $clientId = trim((string) config('services.license.client_id', ''));
 
         $apiKey = trim((string) (
@@ -199,10 +211,8 @@ class ProductActivation
             'domain' => $domain,
             'product' => $product,
             'product_slug' => $product,
+            'item_id' => $itemId,
         ];
-        if ($itemId !== '') {
-            $payload['item_id'] = $itemId;
-        }
         if ($clientId !== '') {
             $payload['client_id'] = $clientId;
         }
@@ -228,7 +238,6 @@ class ProductActivation
 
         $status = strtolower((string) (data_get($body, 'status') ?? ''));
 
-        // Collect validation messages (Laravel-style errors.api_key etc.)
         $fieldError = data_get($body, 'errors.api_key.0')
             ?: data_get($body, 'errors.api_key')
             ?: data_get($body, 'message');
@@ -273,12 +282,34 @@ class ProductActivation
 
         $saleItemId = (string) (data_get($item, 'id') ?: data_get($purchase, 'item_id') ?: '');
         $saleItemName = (string) (data_get($item, 'name') ?: '');
+        $saleSlug = strtolower((string) (
+            data_get($item, 'slug')
+            ?: data_get($purchase, 'product_slug')
+            ?: ''
+        ));
 
-        if ($itemId !== '' && $saleItemId !== '' && $saleItemId !== $itemId) {
+        // HARD BIND: only CodeBazaar item 1229 (or configured item_id)
+        if ($saleItemId === '') {
             return [
                 'ok' => false,
-                'message' => 'This purchase code belongs to a different product'
-                    .($saleItemName !== '' ? ' ('.$saleItemName.')' : '').'.',
+                'message' => 'License server did not return an item id; cannot confirm this code is for CodeBazaar.',
+            ];
+        }
+
+        if ((string) $saleItemId !== (string) $itemId) {
+            return [
+                'ok' => false,
+                'message' => 'This purchase code is for a different product'
+                    .($saleItemName !== '' ? ' ('.$saleItemName.')' : ' (item #'.$saleItemId.')')
+                    .'. Only CodeBazaar (item #'.$itemId.') codes are accepted.',
+            ];
+        }
+
+        // Optional extra check on product slug/name if present
+        if ($saleSlug !== '' && ! str_contains($saleSlug, 'codebazaar')) {
+            return [
+                'ok' => false,
+                'message' => 'This purchase code is not for CodeBazaar (product slug: '.$saleSlug.').',
             ];
         }
 
@@ -302,7 +333,7 @@ class ProductActivation
             'buyer' => data_get($purchase, 'buyer')
                 ?: data_get($purchase, 'email')
                 ?: data_get($body, 'data.buyer'),
-            'item_id' => $saleItemId ?: $itemId,
+            'item_id' => $saleItemId,
             'item_name' => $saleItemName ?: null,
             'license' => data_get($purchase, 'license_type') ?: data_get($purchase, 'license'),
             'supported_until' => data_get($purchase, 'supported_until'),
@@ -314,7 +345,7 @@ class ProductActivation
             'verified_via' => 'license_server',
         ]);
 
-        $label = $saleItemName !== '' ? $saleItemName : 'Purchase';
+        $label = $saleItemName !== '' ? $saleItemName : 'CodeBazaar';
 
         return [
             'ok' => true,
@@ -351,9 +382,9 @@ class ProductActivation
         }
 
         $domain = self::currentDomain();
-        $itemId = (string) config('services.jigsource.item_id', config('services.license.item_id', ''));
+        $itemId = self::expectedItemId();
 
-        if ($itemId !== '' && ! empty($payload['item_id']) && (string) $payload['item_id'] !== $itemId) {
+        if (empty($payload['item_id']) || (string) $payload['item_id'] !== (string) $itemId) {
             return ['ok' => false, 'message' => 'This JigSource license is for a different product.', 'hard_fail' => true];
         }
 
