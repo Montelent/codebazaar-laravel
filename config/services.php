@@ -28,20 +28,18 @@ return [
     | Product license verification
     |--------------------------------------------------------------------------
     |
-    | Bound to JigSource item:
-    | https://jigsource.store/items/codebazaar-sell-code-scripts-digital-assets-laravel-marketplace/1229
-    | Item ID: 1229
+    | Secrets (API keys, Envato tokens) must come from environment variables
+    | only. Never commit real values to this file.
     |
-    | Codes for any other JigSource product are rejected after API success.
+    | JigSource item: 1229 (CodeBazaar)
     |
     */
     'license' => [
         'verify_url' => env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
         'product' => env('LICENSE_PRODUCT', 'codebazaar'),
-        // CodeBazaar on JigSource — only this item may activate
         'item_id' => env('LICENSE_ITEM_ID', '1229'),
         'client_id' => env('LICENSE_CLIENT_ID'),
-        'api_key' => env('LICENSE_API_KEY', env('JIGSOURCE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo')),
+        'api_key' => env('LICENSE_API_KEY', env('JIGSOURCE_API_KEY')),
         'disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
     ],
 
@@ -54,7 +52,7 @@ return [
 
     'jigsource' => [
         'verify_url' => env('JIGSOURCE_VERIFY_URL', env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation')),
-        'api_key' => env('JIGSOURCE_API_KEY', env('LICENSE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo')),
+        'api_key' => env('JIGSOURCE_API_KEY', env('LICENSE_API_KEY')),
         'item_id' => env('JIGSOURCE_ITEM_ID', env('LICENSE_ITEM_ID', '1229')),
         'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
         'product_slug' => env('JIGSOURCE_PRODUCT', env('LICENSE_PRODUCT', 'codebazaar')),
