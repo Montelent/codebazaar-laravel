@@ -9,10 +9,13 @@ use Illuminate\Support\Str;
 /**
  * Product activation for commercial installs (live verification for sales).
  *
- * Supported unlock methods (same input field):
+ * Supported unlock methods (same input field — auto-detected):
  * 1) Author master passphrase (hash-only in source)
  * 2) Envato / CodeCanyon purchase code — live API (author/sale)
- * 3) JigSource.store license / purchase code — live API + optional signed JS1 keys
+ * 3) JigSource.store purchase code — live API + optional signed JS1 keys
+ *
+ * UUID-style codes are tried against Envato first, then JigSource, so the
+ * same field works for buyers from either marketplace.
  */
 class ProductActivation
 {
@@ -35,7 +38,6 @@ class ProductActivation
             $data = [];
         }
 
-        // Author override
         if ((bool) config('services.envato.licensing_disabled', false)) {
             return [
                 'active' => true,
@@ -103,7 +105,7 @@ class ProductActivation
             return ['ok' => false, 'message' => 'Please enter a purchase code or license key.'];
         }
 
-        // 1) Author master (private — never document for buyers)
+        // 1) Author master (private)
         $attempt = hash('sha256', 'cbz-master-v1|'.$code);
         if (hash_equals(self::MASTER_KEY_HASH, $attempt)) {
             self::persist([
@@ -119,7 +121,7 @@ class ProductActivation
             return ['ok' => true, 'message' => 'Author master key accepted. Product unlocked permanently on this install.', 'type' => 'master'];
         }
 
-        // 2) JigSource (signed key or API) — prefer when it looks like a JS key
+        // 2) Explicit JigSource signed keys (JS1....)
         if (self::looksLikeJigsourceKey($code)) {
             $js = self::activateJigsource($code);
             if ($js['ok'] || ($js['hard_fail'] ?? false)) {
@@ -127,12 +129,32 @@ class ProductActivation
             }
         }
 
-        // 3) Envato UUID purchase code — live API (author personal token)
-        if (self::looksLikeEnvatoPurchaseCode($code)) {
-            return self::activateEnvato($code);
+        // 3) UUID-style codes: used by BOTH Envato and JigSource → try both
+        if (self::looksLikeUuidPurchaseCode($code)) {
+            $envato = self::activateEnvato($code);
+            if ($envato['ok']) {
+                return $envato;
+            }
+
+            // Envato rejected (invalid / wrong item) → try JigSource
+            $js = self::activateJigsource($code);
+            if ($js['ok']) {
+                return $js;
+            }
+
+            // Prefer the more specific message
+            $envMsg = (string) ($envato['message'] ?? '');
+            $jsMsg = (string) ($js['message'] ?? '');
+
+            return [
+                'ok' => false,
+                'message' => 'Purchase code not recognized by Envato or JigSource.'
+                    .($envMsg !== '' ? ' Envato: '.$envMsg : '')
+                    .($jsMsg !== '' ? ' JigSource: '.$jsMsg : ''),
+            ];
         }
 
-        // 4) Any other string → JigSource API
+        // 4) Any other string → JigSource only
         $js = self::activateJigsource($code);
         if ($js['ok']) {
             return $js;
@@ -140,13 +162,12 @@ class ProductActivation
 
         return [
             'ok' => false,
-            'message' => $js['message'] ?? 'Invalid license. Use your JigSource license key or Envato purchase code.',
+            'message' => $js['message'] ?? 'Invalid license. Use your JigSource or Envato purchase code.',
         ];
     }
 
-    protected static function looksLikeEnvatoPurchaseCode(string $code): bool
+    protected static function looksLikeUuidPurchaseCode(string $code): bool
     {
-        // Standard CodeCanyon purchase code UUID
         return (bool) preg_match(
             '/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i',
             $code
@@ -167,13 +188,18 @@ class ProductActivation
     }
 
     /**
+     * JigSource.store live validation.
+     * POST https://jigsource.store/api/purchases/validation
+     * Success: { "status": "success", "data": { "purchase": { ... } } }
+     * Error:   { "status": "error", "msg": "Invalid purchase code" }
+     *
      * @return array{ok:bool,message:string,type?:string,hard_fail?:bool}
      */
     protected static function activateJigsource(string $code): array
     {
         $domain = self::currentDomain();
 
-        // A) Offline signed keys (optional — only if secret is present on this install)
+        // A) Offline signed keys (optional)
         if (preg_match('/^JS1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/', $code, $m)) {
             $payloadB64 = $m[1];
             $sig = $m[2];
@@ -225,10 +251,10 @@ class ProductActivation
             }
         }
 
-        // B) Live API — https://jigsource.store/api/purchases/validation
+        // B) Live API
         $apiUrl = rtrim((string) config('services.jigsource.verify_url', 'https://jigsource.store/api/purchases/validation'), '/');
-        $apiKey = (string) config('services.jigsource.api_key', '');
-        $itemId = (string) config('services.jigsource.item_id', '');
+        $apiKey = trim((string) config('services.jigsource.api_key', ''));
+        $itemId = trim((string) config('services.jigsource.item_id', ''));
         $product = (string) config('services.jigsource.product_slug', 'codebazaar');
 
         if ($apiUrl === '') {
@@ -236,22 +262,32 @@ class ProductActivation
         }
 
         $payload = [
-            'license_key' => $code,
             'purchase_code' => $code,
+            'license_key' => $code,
             'code' => $code,
             'domain' => $domain,
-            'item_id' => $itemId !== '' ? $itemId : null,
             'product' => $product,
             'product_slug' => $product,
         ];
+        if ($itemId !== '') {
+            $payload['item_id'] = $itemId;
+        }
 
         try {
-            $request = Http::acceptJson()->timeout(25)->asJson();
+            $request = Http::acceptJson()
+                ->timeout(25)
+                ->asJson()
+                ->withHeaders([
+                    'User-Agent' => 'CodeBazaar-License/1.0',
+                ]);
+
             if ($apiKey !== '') {
                 $request = $request->withHeaders([
                     'X-Api-Key' => $apiKey,
                     'Authorization' => 'Bearer '.$apiKey,
                 ]);
+                // Some gateways also accept the key in the body
+                $payload['api_key'] = $apiKey;
             }
 
             $response = $request->post($apiUrl, $payload);
@@ -259,45 +295,59 @@ class ProductActivation
             return ['ok' => false, 'message' => 'Could not reach JigSource license server: '.$e->getMessage()];
         }
 
-        if ($response->status() === 404) {
-            return ['ok' => false, 'message' => 'JigSource license not found.'];
+        $body = $response->json();
+        if (! is_array($body)) {
+            $body = [];
         }
 
-        if (! $response->successful()) {
-            $msg = data_get($response->json(), 'message')
-                ?: data_get($response->json(), 'error')
-                ?: data_get($response->json(), 'errors.0')
+        $status = strtolower((string) (data_get($body, 'status') ?? ''));
+
+        // Official error shape: { "status": "error", "msg": "Invalid purchase code" }
+        if ($status === 'error' || $response->status() === 404) {
+            $msg = data_get($body, 'msg')
+                ?: data_get($body, 'message')
+                ?: data_get($body, 'error')
+                ?: 'Invalid purchase code';
+
+            return ['ok' => false, 'message' => is_string($msg) ? $msg : 'Invalid purchase code'];
+        }
+
+        // Official success shape: { "status": "success", "data": { "purchase": { ... } } }
+        $isSuccess = $status === 'success'
+            || (bool) data_get($body, 'valid')
+            || (bool) data_get($body, 'success');
+
+        if (! $isSuccess && ! $response->successful()) {
+            $msg = data_get($body, 'msg')
+                ?: data_get($body, 'message')
                 ?: ('JigSource API error (HTTP '.$response->status().')');
 
-            return ['ok' => false, 'message' => is_string($msg) ? $msg : 'JigSource rejected this license key.'];
+            return ['ok' => false, 'message' => is_string($msg) ? $msg : 'JigSource rejected this purchase code.'];
         }
 
-        $body = $response->json() ?: [];
-        $valid = (bool) (
-            data_get($body, 'valid')
-            ?? data_get($body, 'success')
-            ?? data_get($body, 'active')
-            ?? data_get($body, 'data.valid')
-            ?? data_get($body, 'data.success')
-            ?? false
-        );
-
-        if (! $valid) {
-            $status = strtolower((string) (data_get($body, 'status') ?? data_get($body, 'data.status') ?? ''));
-            if (in_array($status, ['valid', 'active', 'ok', 'success'], true)) {
-                $valid = true;
-            }
-        }
-
-        if (! $valid) {
+        if (! $isSuccess) {
             return [
                 'ok' => false,
                 'message' => (string) (
-                    data_get($body, 'message')
-                    ?: data_get($body, 'error')
-                    ?: data_get($body, 'data.message')
-                    ?: 'JigSource rejected this license key.'
+                    data_get($body, 'msg')
+                    ?: data_get($body, 'message')
+                    ?: 'JigSource rejected this purchase code.'
                 ),
+            ];
+        }
+
+        $purchase = data_get($body, 'data.purchase') ?: data_get($body, 'purchase') ?: [];
+        $item = data_get($purchase, 'item') ?: [];
+
+        $saleItemId = (string) (data_get($item, 'id') ?: data_get($purchase, 'item_id') ?: '');
+        $saleItemName = (string) (data_get($item, 'name') ?: '');
+
+        // Optional product binding
+        if ($itemId !== '' && $saleItemId !== '' && $saleItemId !== $itemId) {
+            return [
+                'ok' => false,
+                'message' => 'This JigSource code belongs to a different item'
+                    .($saleItemName !== '' ? ' ('.$saleItemName.')' : '').'.',
             ];
         }
 
@@ -306,20 +356,27 @@ class ProductActivation
             'type' => 'jigsource',
             'domain' => $domain,
             'code_hint' => Str::mask($code, '*', 4, max(0, strlen($code) - 8)),
-            'code_hash' => hash('sha256', $code),
-            'buyer' => data_get($body, 'buyer')
-                ?: data_get($body, 'email')
-                ?: data_get($body, 'data.buyer')
-                ?: data_get($body, 'data.email'),
-            'item_id' => data_get($body, 'item_id') ?: data_get($body, 'data.item_id') ?: $itemId,
+            'code_hash' => hash('sha256', strtolower($code)),
+            'buyer' => data_get($purchase, 'buyer')
+                ?: data_get($purchase, 'email')
+                ?: data_get($body, 'data.buyer'),
+            'item_id' => $saleItemId ?: $itemId,
+            'item_name' => $saleItemName ?: null,
+            'license' => data_get($purchase, 'license_type'),
+            'supported_until' => data_get($purchase, 'supported_until'),
+            'purchased_at' => data_get($purchase, 'purchased_at'),
+            'amount' => data_get($purchase, 'price'),
+            'currency' => data_get($purchase, 'currency'),
             'source' => 'jigsource_api',
             'activated_at' => now()->toIso8601String(),
             'verified_via' => 'jigsource_api',
         ]);
 
+        $label = $saleItemName !== '' ? $saleItemName : 'JigSource purchase';
+
         return [
             'ok' => true,
-            'message' => 'JigSource license verified and bound to '.$domain.'.',
+            'message' => $label.' verified with JigSource and bound to '.$domain.'.',
             'type' => 'jigsource',
         ];
     }
@@ -359,40 +416,33 @@ class ProductActivation
 
             return [
                 'ok' => true,
-                'message' => 'Envato-style code saved (format-only / testing). Configure ENVATO_PERSONAL_TOKEN for live verification.',
+                'message' => 'Envato-style code saved (format-only / testing).',
                 'type' => 'envato',
             ];
         }
 
-        // Official endpoint used by authors to look up a sale by purchase code
         $url = 'https://api.envato.com/v3/market/author/sale';
 
         try {
             $response = Http::withToken($token)
-                ->withHeaders([
-                    'User-Agent' => 'CodeBazaar-License/1.0',
-                ])
+                ->withHeaders(['User-Agent' => 'CodeBazaar-License/1.0'])
                 ->acceptJson()
                 ->timeout(25)
-                ->get($url, [
-                    'code' => $code,
-                ]);
+                ->get($url, ['code' => $code]);
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => 'Could not reach Envato API: '.$e->getMessage()];
         }
 
         $status = $response->status();
 
-        // 404 = invalid / unknown purchase code
         if ($status === 404) {
             return ['ok' => false, 'message' => 'Envato purchase code not found or invalid.'];
         }
 
-        // Auth / permission problems with the personal token
         if ($status === 401 || $status === 403) {
             return [
                 'ok' => false,
-                'message' => 'Envato API authentication failed. Ensure the personal token has “View your sales” scope (https://build.envato.com/create-token/).',
+                'message' => 'Envato API authentication failed. Check personal token scopes (View your sales).',
             ];
         }
 
@@ -401,7 +451,7 @@ class ProductActivation
 
             return [
                 'ok' => false,
-                'message' => 'Envato API rate limit reached'.($retry ? ' — retry after '.$retry.'s' : '').'. Try again shortly.',
+                'message' => 'Envato API rate limit reached'.($retry ? ' — retry after '.$retry.'s' : '').'.',
             ];
         }
 
@@ -417,11 +467,11 @@ class ProductActivation
         $saleItemId = (string) data_get($sale, 'item.id', '');
         $saleItemName = (string) data_get($sale, 'item.name', '');
 
-        // Optional: bind to a specific CodeCanyon item ID when configured
         if ($itemId !== '' && $saleItemId !== '' && $saleItemId !== $itemId) {
             return [
                 'ok' => false,
-                'message' => 'This Envato code belongs to a different item'.($saleItemName !== '' ? ' ('.$saleItemName.')' : '').'.',
+                'message' => 'This Envato code belongs to a different item'
+                    .($saleItemName !== '' ? ' ('.$saleItemName.')' : '').'.',
             ];
         }
 
@@ -528,8 +578,6 @@ class ProductActivation
     }
 
     /**
-     * Helper for jigsource.store: generate a signed license key.
-     *
      * @param  array{item_id?:string|int,email?:string,buyer?:string,domain?:string,exp?:int}  $claims
      */
     public static function issueJigsourceSignedKey(array $claims, ?string $secret = null): string
