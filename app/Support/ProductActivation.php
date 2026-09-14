@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  *
  * Supported unlock methods (same input field):
  * 1) Author master passphrase (hash-only in source)
- * 2) Envato / CodeCanyon purchase code — live API when token is set
+ * 2) Envato / CodeCanyon purchase code — live API (author/sale)
  * 3) JigSource.store license / purchase code — live API + optional signed JS1 keys
  */
 class ProductActivation
@@ -127,8 +127,8 @@ class ProductActivation
             }
         }
 
-        // 3) Envato UUID purchase code — always live when require_live is on
-        if (preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $code)) {
+        // 3) Envato UUID purchase code — live API (author personal token)
+        if (self::looksLikeEnvatoPurchaseCode($code)) {
             return self::activateEnvato($code);
         }
 
@@ -142,6 +142,15 @@ class ProductActivation
             'ok' => false,
             'message' => $js['message'] ?? 'Invalid license. Use your JigSource license key or Envato purchase code.',
         ];
+    }
+
+    protected static function looksLikeEnvatoPurchaseCode(string $code): bool
+    {
+        // Standard CodeCanyon purchase code UUID
+        return (bool) preg_match(
+            '/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i',
+            $code
+        );
     }
 
     protected static function looksLikeJigsourceKey(string $code): bool
@@ -316,21 +325,22 @@ class ProductActivation
     }
 
     /**
-     * Live Envato verification only (format-only disabled when ENVATO_REQUIRE_LIVE=true).
+     * Live Envato verification via GET /v3/market/author/sale?code=
+     * Docs: https://build.envato.com/api/#market_0_getAuthorSale
      *
      * @return array{ok:bool,message:string,type?:string}
      */
     protected static function activateEnvato(string $code): array
     {
-        $token = (string) config('services.envato.token', '');
-        $itemId = (string) config('services.envato.item_id', '');
+        $token = trim((string) config('services.envato.token', ''));
+        $itemId = trim((string) config('services.envato.item_id', ''));
         $requireLive = (bool) config('services.envato.require_live', true);
 
         if ($token === '') {
             if ($requireLive) {
                 return [
                     'ok' => false,
-                    'message' => 'Live Envato verification is required. The seller has not configured ENVATO_PERSONAL_TOKEN on this product build, or set ENVATO_REQUIRE_LIVE=false for testing only.',
+                    'message' => 'Live Envato verification is required but no personal token is configured (ENVATO_PERSONAL_TOKEN).',
                 ];
             }
 
@@ -349,40 +359,75 @@ class ProductActivation
 
             return [
                 'ok' => true,
-                'message' => 'Envato-style code saved (format-only / testing). Set ENVATO_PERSONAL_TOKEN for live verification.',
+                'message' => 'Envato-style code saved (format-only / testing). Configure ENVATO_PERSONAL_TOKEN for live verification.',
                 'type' => 'envato',
             ];
         }
 
+        // Official endpoint used by authors to look up a sale by purchase code
+        $url = 'https://api.envato.com/v3/market/author/sale';
+
         try {
             $response = Http::withToken($token)
+                ->withHeaders([
+                    'User-Agent' => 'CodeBazaar-License/1.0',
+                ])
                 ->acceptJson()
                 ->timeout(25)
-                ->get('https://api.envato.com/v3/market/author/sale', [
+                ->get($url, [
                     'code' => $code,
                 ]);
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => 'Could not reach Envato API: '.$e->getMessage()];
         }
 
-        if ($response->status() === 404) {
+        $status = $response->status();
+
+        // 404 = invalid / unknown purchase code
+        if ($status === 404) {
             return ['ok' => false, 'message' => 'Envato purchase code not found or invalid.'];
         }
 
-        if ($response->status() === 401 || $response->status() === 403) {
-            return ['ok' => false, 'message' => 'Envato API authentication failed. Check ENVATO_PERSONAL_TOKEN scopes (View your sales).'];
+        // Auth / permission problems with the personal token
+        if ($status === 401 || $status === 403) {
+            return [
+                'ok' => false,
+                'message' => 'Envato API authentication failed. Ensure the personal token has “View your sales” scope (https://build.envato.com/create-token/).',
+            ];
+        }
+
+        if ($status === 429) {
+            $retry = $response->header('Retry-After');
+
+            return [
+                'ok' => false,
+                'message' => 'Envato API rate limit reached'.($retry ? ' — retry after '.$retry.'s' : '').'. Try again shortly.',
+            ];
         }
 
         if (! $response->successful()) {
-            return ['ok' => false, 'message' => 'Envato API error (HTTP '.$response->status().').'];
+            return ['ok' => false, 'message' => 'Envato API error (HTTP '.$status.').'];
         }
 
         $sale = $response->json();
-        $saleItemId = (string) data_get($sale, 'item.id', '');
-
-        if ($itemId !== '' && $saleItemId !== '' && $saleItemId !== $itemId) {
-            return ['ok' => false, 'message' => 'This Envato code belongs to a different item.'];
+        if (! is_array($sale) || empty($sale)) {
+            return ['ok' => false, 'message' => 'Envato returned an empty sale response.'];
         }
+
+        $saleItemId = (string) data_get($sale, 'item.id', '');
+        $saleItemName = (string) data_get($sale, 'item.name', '');
+
+        // Optional: bind to a specific CodeCanyon item ID when configured
+        if ($itemId !== '' && $saleItemId !== '' && $saleItemId !== $itemId) {
+            return [
+                'ok' => false,
+                'message' => 'This Envato code belongs to a different item'.($saleItemName !== '' ? ' ('.$saleItemName.')' : '').'.',
+            ];
+        }
+
+        $buyer = data_get($sale, 'buyer')
+            ?: data_get($sale, 'buyer_username')
+            ?: data_get($sale, 'buyer_id');
 
         self::persist([
             'active' => true,
@@ -390,18 +435,23 @@ class ProductActivation
             'domain' => self::currentDomain(),
             'code_hint' => Str::mask($code, '*', 4, max(0, strlen($code) - 8)),
             'code_hash' => hash('sha256', strtolower($code)),
-            'buyer' => data_get($sale, 'buyer') ?: data_get($sale, 'buyer_username'),
+            'buyer' => $buyer,
             'item_id' => $saleItemId ?: $itemId,
-            'item_name' => data_get($sale, 'item.name'),
+            'item_name' => $saleItemName ?: null,
             'license' => data_get($sale, 'license'),
+            'sold_at' => data_get($sale, 'sold_at'),
+            'supported_until' => data_get($sale, 'supported_until'),
+            'amount' => data_get($sale, 'amount'),
             'source' => 'envato_api',
             'activated_at' => now()->toIso8601String(),
             'verified_via' => 'envato_api',
         ]);
 
+        $label = $saleItemName !== '' ? $saleItemName : 'Envato purchase';
+
         return [
             'ok' => true,
-            'message' => 'Envato license verified and bound to '.self::currentDomain().'.',
+            'message' => $label.' verified with Envato and bound to '.self::currentDomain().'.',
             'type' => 'envato',
         ];
     }
