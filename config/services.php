@@ -28,28 +28,23 @@ return [
     | Product license verification
     |--------------------------------------------------------------------------
     |
-    | Buyer installs call the seller license server only.
-    | JigSource's /api/purchases/validation requires an "api_key" field on
-    | every request — that is a product client key for this item, not the
-    | buyer's secret. Prefer rotating it if the package is leaked.
+    | Bound to JigSource item:
+    | https://jigsource.store/items/codebazaar-sell-code-scripts-digital-assets-laravel-marketplace/1229
+    | Item ID: 1229
     |
-    | Envato personal tokens are NEVER shipped. Envato codes should be
-    | verified on the license server (jigsource) when possible.
+    | Codes for any other JigSource product are rejected after API success.
     |
     */
     'license' => [
         'verify_url' => env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
         'product' => env('LICENSE_PRODUCT', 'codebazaar'),
-        'item_id' => env('LICENSE_ITEM_ID'),
+        // CodeBazaar on JigSource — only this item may activate
+        'item_id' => env('LICENSE_ITEM_ID', '1229'),
         'client_id' => env('LICENSE_CLIENT_ID'),
-        // Required by jigsource.store validation API (body field: api_key)
         'api_key' => env('LICENSE_API_KEY', env('JIGSOURCE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo')),
         'disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
     ],
 
-    /*
-    | Optional direct Envato (author demo server .env only — empty in zip)
-    */
     'envato' => [
         'token' => env('ENVATO_PERSONAL_TOKEN'),
         'item_id' => env('ENVATO_ITEM_ID'),
@@ -60,7 +55,7 @@ return [
     'jigsource' => [
         'verify_url' => env('JIGSOURCE_VERIFY_URL', env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation')),
         'api_key' => env('JIGSOURCE_API_KEY', env('LICENSE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo')),
-        'item_id' => env('JIGSOURCE_ITEM_ID', env('LICENSE_ITEM_ID')),
+        'item_id' => env('JIGSOURCE_ITEM_ID', env('LICENSE_ITEM_ID', '1229')),
         'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
         'product_slug' => env('JIGSOURCE_PRODUCT', env('LICENSE_PRODUCT', 'codebazaar')),
     ],
