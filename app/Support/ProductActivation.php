@@ -9,15 +9,15 @@ use Illuminate\Support\Str;
 /**
  * Product activation for commercial installs.
  *
- * Buyer installs do NOT contain Envato personal tokens or JigSource API keys.
- * Live verification always goes to the seller license server:
+ * Buyer installs do NOT contain Envato personal tokens.
+ * Live verification goes to the seller license server:
  *   POST {LICENSE_VERIFY_URL}  (default https://jigsource.store/api/purchases/validation)
  *
- * That server holds secrets and may validate Envato and/or JigSource codes.
+ * JigSource requires an "api_key" field on every validation request.
+ * That product client key is configured under services.license.api_key.
  *
  * Local author tools (optional, only if set in the server's own .env):
  *   ENVATO_PERSONAL_TOKEN — direct Envato API (author demo / private proxy)
- *   JIGSOURCE_API_KEY     — authenticated JigSource calls from author server
  */
 class ProductActivation
 {
@@ -107,7 +107,7 @@ class ProductActivation
             return ['ok' => false, 'message' => 'Please enter a purchase code or license key.'];
         }
 
-        // 1) Author master (hash only — never ship the plaintext passphrase in docs for buyers)
+        // 1) Author master
         $attempt = hash('sha256', 'cbz-master-v1|'.$code);
         if (hash_equals(self::MASTER_KEY_HASH, $attempt)) {
             self::persist([
@@ -123,7 +123,7 @@ class ProductActivation
             return ['ok' => true, 'message' => 'Author master key accepted. Product unlocked permanently on this install.', 'type' => 'master'];
         }
 
-        // 2) Optional offline JS1 signed keys (only if author set JIGSOURCE_LICENSE_SECRET on THIS server)
+        // 2) Optional offline JS1 signed keys
         if (self::looksLikeJigsourceSignedKey($code)) {
             $signed = self::activateJigsourceSigned($code);
             if ($signed['ok'] || ($signed['hard_fail'] ?? false)) {
@@ -131,14 +131,13 @@ class ProductActivation
             }
         }
 
-        // 3) Seller license server (default path for all sold installs — no secrets in the product)
+        // 3) Seller license server (JigSource) — always send api_key field
         $server = self::activateViaLicenseServer($code);
         if ($server['ok']) {
             return $server;
         }
 
-        // 4) Author-only direct Envato API (only when ENVATO_PERSONAL_TOKEN is set on this server)
-        //    Not available in the distributed zip — buyers will not have this token.
+        // 4) Author-only direct Envato (ENVATO_PERSONAL_TOKEN in server .env only)
         if (self::looksLikeUuidPurchaseCode($code) && trim((string) config('services.envato.token', '')) !== '') {
             $envato = self::activateEnvatoDirect($code);
             if ($envato['ok']) {
@@ -166,12 +165,7 @@ class ProductActivation
     }
 
     /**
-     * Call the seller license server. No API secrets are shipped in the product.
-     *
-     * Expected success:
-     *   { "status": "success", "data": { "purchase": { ... } } }
-     * Expected error:
-     *   { "status": "error", "msg": "Invalid purchase code" }
+     * POST license server. JigSource requires body field "api_key".
      *
      * @return array{ok:bool,message:string,type?:string}
      */
@@ -183,15 +177,22 @@ class ProductActivation
         $itemId = trim((string) config('services.license.item_id', ''));
         $clientId = trim((string) config('services.license.client_id', ''));
 
-        // Author server only: if JIGSOURCE_API_KEY is present in THIS environment, send it.
-        // Distributed buyer installs will have an empty key.
-        $authorApiKey = trim((string) config('services.jigsource.api_key', ''));
+        $apiKey = trim((string) (
+            config('services.license.api_key')
+            ?: config('services.jigsource.api_key')
+            ?: ''
+        ));
 
         if ($apiUrl === '') {
             return ['ok' => false, 'message' => 'License server URL is not configured.'];
         }
 
+        if ($apiKey === '') {
+            return ['ok' => false, 'message' => 'License API key is not configured (api_key is required by the license server).'];
+        }
+
         $payload = [
+            'api_key' => $apiKey,
             'purchase_code' => $code,
             'license_key' => $code,
             'code' => $code,
@@ -207,22 +208,15 @@ class ProductActivation
         }
 
         try {
-            $request = Http::acceptJson()
+            $response = Http::acceptJson()
                 ->timeout(25)
                 ->asJson()
                 ->withHeaders([
                     'User-Agent' => 'CodeBazaar-License/1.0',
-                ]);
-
-            // Never hardcode a secret. Only attach if this install's .env provides one (author proxy).
-            if ($authorApiKey !== '') {
-                $request = $request->withHeaders([
-                    'X-Api-Key' => $authorApiKey,
-                    'Authorization' => 'Bearer '.$authorApiKey,
-                ]);
-            }
-
-            $response = $request->post($apiUrl, $payload);
+                    'X-Api-Key' => $apiKey,
+                    'Authorization' => 'Bearer '.$apiKey,
+                ])
+                ->post($apiUrl, $payload);
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => 'Could not reach license server: '.$e->getMessage()];
         }
@@ -234,10 +228,16 @@ class ProductActivation
 
         $status = strtolower((string) (data_get($body, 'status') ?? ''));
 
+        // Collect validation messages (Laravel-style errors.api_key etc.)
+        $fieldError = data_get($body, 'errors.api_key.0')
+            ?: data_get($body, 'errors.api_key')
+            ?: data_get($body, 'message');
+
         if ($status === 'error' || $response->status() === 404) {
             $msg = data_get($body, 'msg')
                 ?: data_get($body, 'message')
                 ?: data_get($body, 'error')
+                ?: $fieldError
                 ?: 'Invalid purchase code';
 
             return ['ok' => false, 'message' => is_string($msg) ? $msg : 'Invalid purchase code'];
@@ -251,6 +251,7 @@ class ProductActivation
             if (! $response->successful()) {
                 $msg = data_get($body, 'msg')
                     ?: data_get($body, 'message')
+                    ?: $fieldError
                     ?: ('License server error (HTTP '.$response->status().')');
 
                 return ['ok' => false, 'message' => is_string($msg) ? $msg : 'License server rejected this code.'];
@@ -261,6 +262,7 @@ class ProductActivation
                 'message' => (string) (
                     data_get($body, 'msg')
                     ?: data_get($body, 'message')
+                    ?: $fieldError
                     ?: 'License server rejected this code.'
                 ),
             ];
@@ -280,17 +282,16 @@ class ProductActivation
             ];
         }
 
-        // Detect source label when the license server reports it
         $sourceHint = strtolower((string) (
             data_get($body, 'source')
             ?: data_get($body, 'data.source')
             ?: data_get($purchase, 'source')
             ?: data_get($purchase, 'marketplace')
-            ?: 'license_server'
+            ?: 'jigsource'
         ));
         $type = str_contains($sourceHint, 'envato') || str_contains($sourceHint, 'codecanyon')
             ? 'envato'
-            : (str_contains($sourceHint, 'jig') ? 'jigsource' : 'license_server');
+            : 'jigsource';
 
         self::persist([
             'active' => true,
@@ -323,8 +324,6 @@ class ProductActivation
     }
 
     /**
-     * Offline JS1 keys — only when JIGSOURCE_LICENSE_SECRET exists on this server.
-     *
      * @return array{ok:bool,message:string,type?:string,hard_fail?:bool}
      */
     protected static function activateJigsourceSigned(string $code): array
@@ -387,8 +386,6 @@ class ProductActivation
     }
 
     /**
-     * Direct Envato API — author/demo servers only (token from .env, never shipped).
-     *
      * @return array{ok:bool,message:string,type?:string}
      */
     protected static function activateEnvatoDirect(string $code): array
