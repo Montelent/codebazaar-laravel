@@ -31,31 +31,28 @@ return [
     | Endpoint: GET https://api.envato.com/v3/market/author/sale?code={purchase_code}
     | Auth:    Authorization: Bearer {personal_token}
     | Docs:    https://build.envato.com/api/#market_0_getAuthorSale
-    | Token:   https://build.envato.com/create-token/
-    | Scopes:  "View and search Envato sites" + "View your sales"
-    |
-    | ENVATO_PERSONAL_TOKEN in .env overrides the built-in author token.
-    | ENVATO_ITEM_ID (optional) rejects codes for other CodeCanyon items.
     |
     */
     'envato' => [
-        // Prefer .env; fallback keeps live verification working on fresh installs
-        // without requiring buyers to set seller secrets in their .env.
         'token' => env('ENVATO_PERSONAL_TOKEN', 'ug7EGOJQw2nK2MYh7HPYvLLHsmQssFHA'),
         'item_id' => env('ENVATO_ITEM_ID'),
         'licensing_disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
-        // When true, UUID codes must pass the Envato API (no format-only unlock)
         'require_live' => (bool) env('ENVATO_REQUIRE_LIVE', true),
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | JigSource.store license verification (unchanged)
+    | JigSource.store purchase validation (live)
     |--------------------------------------------------------------------------
+    |
+    | Endpoint: POST https://jigsource.store/api/purchases/validation
+    | Success:  { "status": "success", "data": { "purchase": { ... } } }
+    | Error:    { "status": "error", "msg": "Invalid purchase code" }
+    |
     */
     'jigsource' => [
         'verify_url' => env('JIGSOURCE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
-        'api_key' => env('JIGSOURCE_API_KEY'),
+        'api_key' => env('JIGSOURCE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo'),
         'item_id' => env('JIGSOURCE_ITEM_ID'),
         'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
         'product_slug' => env('JIGSOURCE_PRODUCT', 'codebazaar'),
