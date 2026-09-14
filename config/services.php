@@ -25,36 +25,45 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Envato / CodeCanyon purchase-code verification (live)
+    | Product license verification (buyer installs)
     |--------------------------------------------------------------------------
     |
-    | Endpoint: GET https://api.envato.com/v3/market/author/sale?code={purchase_code}
-    | Auth:    Authorization: Bearer {personal_token}
-    | Docs:    https://build.envato.com/api/#market_0_getAuthorSale
+    | Buyer sites NEVER receive your Envato personal token or JigSource API key.
+    | They only call the seller license server (default: jigsource.store).
+    |
+    | That server is responsible for verifying Envato and/or JigSource codes
+    | using secrets stored only on your infrastructure.
+    |
+    | Optional .env overrides (author demo / self-hosted license server only):
+    |   LICENSE_VERIFY_URL, LICENSE_PRODUCT, LICENSE_ITEM_ID
+    |   ENVATO_PERSONAL_TOKEN, JIGSOURCE_API_KEY — do NOT ship these in the zip
     |
     */
+    'license' => [
+        'verify_url' => env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
+        'product' => env('LICENSE_PRODUCT', 'codebazaar'),
+        'item_id' => env('LICENSE_ITEM_ID'),
+        // Optional public client id if your license server requires one (not a secret API key)
+        'client_id' => env('LICENSE_CLIENT_ID'),
+        'disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
+    ],
+
+    /*
+    | Author-only overrides (empty in the distributed package).
+    | Use on YOUR own server if you run a private license proxy.
+    */
     'envato' => [
-        'token' => env('ENVATO_PERSONAL_TOKEN', 'ug7EGOJQw2nK2MYh7HPYvLLHsmQssFHA'),
+        'token' => env('ENVATO_PERSONAL_TOKEN'),
         'item_id' => env('ENVATO_ITEM_ID'),
         'licensing_disabled' => (bool) env('DISABLE_PRODUCT_LICENSE', false),
         'require_live' => (bool) env('ENVATO_REQUIRE_LIVE', true),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | JigSource.store purchase validation (live)
-    |--------------------------------------------------------------------------
-    |
-    | Endpoint: POST https://jigsource.store/api/purchases/validation
-    | Success:  { "status": "success", "data": { "purchase": { ... } } }
-    | Error:    { "status": "error", "msg": "Invalid purchase code" }
-    |
-    */
     'jigsource' => [
-        'verify_url' => env('JIGSOURCE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation'),
-        'api_key' => env('JIGSOURCE_API_KEY', 'sz34jtCB2mvA6zc8ESRUfUhp7ctlVcNNSCJ12Cza3S0F15BAlo'),
-        'item_id' => env('JIGSOURCE_ITEM_ID'),
+        'verify_url' => env('JIGSOURCE_VERIFY_URL', env('LICENSE_VERIFY_URL', 'https://jigsource.store/api/purchases/validation')),
+        'api_key' => env('JIGSOURCE_API_KEY'),
+        'item_id' => env('JIGSOURCE_ITEM_ID', env('LICENSE_ITEM_ID')),
         'license_secret' => env('JIGSOURCE_LICENSE_SECRET'),
-        'product_slug' => env('JIGSOURCE_PRODUCT', 'codebazaar'),
+        'product_slug' => env('JIGSOURCE_PRODUCT', env('LICENSE_PRODUCT', 'codebazaar')),
     ],
 ];
